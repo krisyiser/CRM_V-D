@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Vainilla & Descanso",
+  "version": "0.1.0",
+  "identifier": "com.yersi.vainilladescanso",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../out"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Vainilla & Descanso",
+        "width": 1280,
+        "height": 800
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:3000 http://localhost:3001 https://*.netlify.app https://*.supabase.co https://api.github.com https://*.loca.lt https://*.trycloudflare.com;"
+    }
+  },
+  "plugins": {
+    "opener": {}
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "resources": [
+      "../out/**/*"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+:root {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  background-color: #F9F7F2;
+  color: #4A4A4A;
+  overflow-x: hidden;
+}
+
+.custom-scrollbar-light::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar-light::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+.custom-scrollbar-light::-webkit-scrollbar-thumb {
+  @apply bg-[#A68A64]/20 rounded-full hover:bg-[#A68A64]/40 transition-colors;
+}
