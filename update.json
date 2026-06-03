@@ -1,11 +1,11 @@
 {
-  "version": "0.1.0",
-  "notes": "Plantilla inicial del sistema de actualizaciones de Vainilla & Descanso.",
-  "pub_date": "2026-06-02T00:00:00Z",
+  "version": "0.1.1",
+  "notes": "Mejora en la interfaz del POS del restaurante/bar para cobros rápidos y navegación optimizada.",
+  "pub_date": "2026-06-03T00:25:00Z",
   "platforms": {
     "windows-x86_64": {
       "signature": "REEMPLAZAR_CON_EL_CONTENIDO_DEL_ARCHIVO_MSI_ZIP_SIG",
-      "url": "https://github.com/krisyiser/CRM_V-D/releases/download/v0.1.0/vainilla-dashboard-desktop_0.1.0_x64_en-US.msi.zip"
+      "url": "https://github.com/krisyiser/CRM_V-D/releases/download/v0.1.1/vainilla-dashboard-desktop_0.1.1_x64_en-US.msi.zip"
     }
   }
 }
