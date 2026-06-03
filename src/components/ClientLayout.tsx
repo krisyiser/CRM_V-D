@@ -37,10 +37,15 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     );
     setCurrentIsTauri(tauriEnv);
 
-    // If external waiter/tablet session, restrict navigation strictly to /pos/mobile.html
+    // If external waiter/tablet session, restrict navigation strictly to /pos/mobile
     if (!tauriEnv) {
-      if (pathname !== '/pos/mobile.html') {
-        router.replace('/pos/mobile.html');
+      const cleanPath = pathname.replace(/\.html$/, '');
+      if (cleanPath !== '/pos/mobile') {
+        router.replace('/pos/mobile');
+        return;
+      }
+      if (pathname.endsWith('.html')) {
+        router.replace('/pos/mobile');
         return;
       }
       

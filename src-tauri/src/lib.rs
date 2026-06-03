@@ -2095,11 +2095,13 @@ pub fn run() {
             tauri::async_runtime::spawn(async move {
                 // SPA fallback: serve static files, with pos.html as the fallback for unknown routes
                 let pos_fallback = frontend_dir.join("pos.html");
+                let mobile_fallback = frontend_dir.join("pos/mobile.html");
                 let spa_fallback = ServeDir::new(frontend_dir)
                     .not_found_service(ServeFile::new(pos_fallback));
 
                 let app = Router::new()
                     .route("/api/v1/health", get(handle_health))
+                    .route_service("/pos/mobile", ServeFile::new(mobile_fallback))
                     .route("/api/v1/reservations", get(handle_get_reservations).post(handle_external_reservation))
                     .route("/api/v1/settings", get(handle_get_settings))
                     .route("/api/v1/rooms", get(handle_get_rooms))

@@ -70,9 +70,9 @@ export default function ConnectionPage() {
 
   const getPosUrl = () => {
     if (tunnelUrl) {
-      return `${tunnelUrl}/pos/mobile.html`;
+      return `${tunnelUrl}/pos/mobile`;
     }
-    return `http://${localIp}:${port}/pos/mobile.html`;
+    return `http://${localIp}:${port}/pos/mobile`;
   };
 
   const handleCopyUrl = () => {
