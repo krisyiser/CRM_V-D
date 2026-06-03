@@ -637,8 +637,8 @@ export default function PosPage() {
         </div>
       ) : (
         /* Sales History Tab */
-        <div className="bg-white rounded-3xl border border-[#E8E4D9] p-8 lg:p-12 shadow-xl text-left">
-          <div className="flex items-center justify-between pb-8 border-b border-[#E8E4D9] mb-8">
+        <div className="bg-white rounded-3xl border border-[#E8E4D9] p-6 lg:p-8 shadow-xl text-left flex-grow min-h-0 lg:overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between pb-6 border-b border-[#E8E4D9] mb-6 shrink-0">
             <h2 className="font-serif text-2xl text-[#1C1C1C]">Historial de Ventas</h2>
             <div className="text-sm font-semibold text-[#8C8C8C]">
               Total histórico: <span className="text-[#A68A64] font-serif font-bold text-xl">${salesHistory.reduce((sum, s) => sum + s.total, 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
@@ -646,7 +646,7 @@ export default function PosPage() {
           </div>
 
           {salesHistory.length === 0 ? (
-            <div className="text-center py-20 text-[#8C8C8C]">
+            <div className="text-center py-20 text-[#8C8C8C] flex-grow flex flex-col items-center justify-center">
               <FileText size={48} className="mx-auto mb-4 stroke-1 opacity-40" />
               <p className="text-lg font-semibold text-[#1C1C1C]">No hay ventas registradas aún</p>
               <p className="text-sm text-[#6B6B6B] mt-1">Los pedidos cobrados en la caja aparecerán aquí.</p>
@@ -663,7 +663,7 @@ export default function PosPage() {
               });
 
               return (
-                <div className="space-y-10">
+                <div className="flex-grow overflow-y-auto space-y-6 pr-2 no-scrollbar">
                   {Object.entries(groups).map(([dateLabel, daySales]) => {
                     const dayTotal = daySales.reduce((sum, s) => sum + s.total, 0);
                     return (
