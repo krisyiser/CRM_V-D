@@ -329,12 +329,12 @@ export default function PosPage() {
     <div className="min-h-screen lg:min-h-0 lg:h-full bg-[#F9F7F2] text-[#2D2D2D] p-4 sm:p-6 lg:p-0 font-sans selection:bg-[#A68A64] selection:text-white text-left lg:overflow-hidden flex flex-col">
       
       {/* Top Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-[#E8E4D9] shrink-0">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-3 border-b border-[#E8E4D9] shrink-0">
         <div>
-          <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-[#A68A64] mb-2">
+          <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-[#A68A64] mb-1.5">
             <Coffee size={16} /> Restaurante & Café Bar
           </div>
-          <h1 className="text-3xl md:text-4xl font-serif text-[#1C1C1C]">Punto de Venta Boutique</h1>
+          <h1 className="text-2xl md:text-3xl font-serif text-[#1C1C1C]">Punto de Venta Boutique</h1>
         </div>
 
         <div className="flex items-center gap-4">
@@ -403,7 +403,7 @@ export default function PosPage() {
                   placeholder="Buscar en menú (ej. Carajillo, Latte, Corona...)"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full bg-white border border-[#E8E4D9] rounded-2xl pl-12 pr-6 py-3.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#A68A64]/30 focus:border-[#A68A64] transition-all shadow-sm text-[#2D2D2D]"
+                  className="w-full bg-white border border-[#E8E4D9] rounded-xl pl-12 pr-6 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#A68A64]/30 focus:border-[#A68A64] transition-all shadow-sm text-[#2D2D2D]"
                 />
                 {searchQuery && (
                   <button onClick={() => setSearchQuery('')} className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8C8C8C] hover:text-[#2D2D2D]">
@@ -419,7 +419,7 @@ export default function PosPage() {
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-5 py-2.5 rounded-2xl text-xs font-bold whitespace-nowrap uppercase tracking-wider transition-all flex items-center gap-2 ${
+                  className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap uppercase tracking-wider transition-all flex items-center gap-1.5 ${
                     selectedCategory === cat 
                       ? 'bg-[#A68A64] text-white shadow-lg shadow-[#A68A64]/20 scale-105' 
                       : 'bg-white text-[#6B6B6B] hover:bg-[#E8E4D9]/40 border border-[#E8E4D9]'
@@ -497,47 +497,47 @@ export default function PosPage() {
 
           {/* Current Order (Shopping Cart) Right Side (4 Cols) */}
           <div className={`lg:col-span-5 xl:col-span-4 flex flex-col lg:h-full ${mobileView === 'cart' ? 'block' : 'hidden lg:flex'}`}>
-            <div className="bg-[#2D2D2D] text-white rounded-3xl p-5 md:p-6 shadow-2xl flex flex-col lg:h-full border border-[#3D3D3D] overflow-hidden">
+            <div className="bg-[#2D2D2D] text-white rounded-3xl p-4 md:p-5 shadow-2xl flex flex-col lg:h-full border border-[#3D3D3D] overflow-hidden">
               
-              <div className="flex items-center justify-between pb-4 border-b border-[#3D3D3D] mb-4 shrink-0">
-                <div className="flex items-center gap-3">
-                  <ShoppingBag className="text-[#A68A64]" size={20} />
-                  <span className="font-serif text-lg font-bold">Cuenta en Curso</span>
+              <div className="flex items-center justify-between pb-3 border-b border-[#3D3D3D] mb-3 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <ShoppingBag className="text-[#A68A64]" size={18} />
+                  <span className="font-serif text-base font-bold">Cuenta en Curso</span>
                 </div>
-                <span className="px-2.5 py-1 bg-[#3D3D3D] text-[#A68A64] rounded-xl text-xs font-bold">
+                <span className="px-2 py-0.5 bg-[#3D3D3D] text-[#A68A64] rounded-lg text-xs font-bold">
                   {cart.reduce((sum, item) => sum + item.quantity, 0)} Items
                 </span>
               </div>
 
               {/* Items List */}
-              <div className="flex-grow overflow-y-auto space-y-3 pr-1 mb-4 no-scrollbar">
+              <div className="flex-grow overflow-y-auto space-y-2 pr-1 mb-3 no-scrollbar">
                 {cart.length === 0 ? (
-                  <div className="text-center py-12 text-[#8C8C8C] flex flex-col items-center justify-center h-full min-h-[150px]">
-                    <ShoppingBag size={36} className="mx-auto mb-2 opacity-30 stroke-1" />
-                    <p className="text-xs font-medium">No hay productos en la cuenta</p>
-                    <p className="text-[11px] text-[#6B6B6B] mt-0.5">Haz clic en los productos para agregarlos</p>
+                  <div className="text-center py-6 text-[#8C8C8C] flex flex-col items-center justify-center h-full min-h-[80px]">
+                    <ShoppingBag size={24} className="mx-auto mb-1.5 opacity-30 stroke-1" />
+                    <p className="text-[11px] font-medium">No hay productos en la cuenta</p>
+                    <p className="text-[9px] text-[#6B6B6B] mt-0.5">Haz clic en los productos para agregarlos</p>
                   </div>
                 ) : (
                   cart.map(item => (
-                    <div key={item.product.id} className="flex items-center justify-between bg-[#383838] p-3 rounded-2xl border border-[#484848]">
+                    <div key={item.product.id} className="flex items-center justify-between bg-[#383838] p-2.5 rounded-xl border border-[#484848]">
                       <div className="flex flex-col flex-grow pr-2">
                         <span className="font-semibold text-xs leading-snug">{item.product.name}</span>
                         <span className="text-[10px] text-[#A68A64] font-medium">${item.product.price.toLocaleString()} c/u</span>
                       </div>
 
-                      <div className="flex items-center gap-2 bg-[#2D2D2D] p-1 rounded-xl border border-[#4D4D4D]">
+                      <div className="flex items-center gap-1.5 bg-[#2D2D2D] p-1 rounded-lg border border-[#4D4D4D]">
                         <button 
                           onClick={() => updateQuantity(item.product.id, -1)}
-                          className="w-6 h-6 bg-[#3D3D3D] hover:bg-[#4D4D4D] text-white rounded-lg flex items-center justify-center transition-colors"
+                          className="w-5 h-5 bg-[#3D3D3D] hover:bg-[#4D4D4D] text-white rounded flex items-center justify-center transition-colors"
                         >
-                          <Minus size={12} />
+                          <Minus size={10} />
                         </button>
                         <span className="font-bold text-xs w-4 text-center">{item.quantity}</span>
                         <button 
                           onClick={() => updateQuantity(item.product.id, 1)}
-                          className="w-6 h-6 bg-[#A68A64] hover:bg-[#8F7553] text-white rounded-lg flex items-center justify-center transition-colors"
+                          className="w-5 h-5 bg-[#A68A64] hover:bg-[#8F7553] text-white rounded flex items-center justify-center transition-colors"
                         >
-                          <Plus size={12} />
+                          <Plus size={10} />
                         </button>
                       </div>
                     </div>
@@ -546,39 +546,39 @@ export default function PosPage() {
               </div>
 
               {/* Payment Settings & Notes */}
-              <div className="space-y-4 border-t border-[#3D3D3D] pt-4 mb-4 shrink-0">
+              <div className="space-y-3 border-t border-[#3D3D3D] pt-3 mb-3 shrink-0">
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#8C8C8C] mb-1.5 block">Método de Pago</label>
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-[#8C8C8C] mb-1.5 block">Método de Pago</label>
                   <div className="grid grid-cols-3 gap-1.5">
                     <button
                       onClick={() => setPaymentMethod('Efectivo')}
-                      className={`py-2 px-1 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all flex flex-col items-center gap-1 ${
+                      className={`py-1.5 px-1 rounded-xl text-[9px] font-bold uppercase tracking-wider border transition-all flex flex-col items-center gap-1 ${
                         paymentMethod === 'Efectivo' ? 'bg-[#A68A64] border-[#A68A64] text-white shadow-lg shadow-[#A68A64]/20' : 'bg-[#383838] border-[#484848] text-[#8C8C8C] hover:text-white'
                       }`}
                     >
-                      <Wallet size={14} /> Efectivo
+                      <Wallet size={12} /> Efectivo
                     </button>
                     <button
                       onClick={() => setPaymentMethod('Tarjeta')}
-                      className={`py-2 px-1 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all flex flex-col items-center gap-1 ${
+                      className={`py-1.5 px-1 rounded-xl text-[9px] font-bold uppercase tracking-wider border transition-all flex flex-col items-center gap-1 ${
                         paymentMethod === 'Tarjeta' ? 'bg-[#A68A64] border-[#A68A64] text-white shadow-lg shadow-[#A68A64]/20' : 'bg-[#383838] border-[#484848] text-[#8C8C8C] hover:text-white'
                       }`}
                     >
-                      <CreditCard size={14} /> Tarjeta
+                      <CreditCard size={12} /> Tarjeta
                     </button>
                     <button
                       onClick={() => setPaymentMethod('Habitación')}
-                      className={`py-2 px-1 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all flex flex-col items-center gap-1 ${
+                      className={`py-1.5 px-1 rounded-xl text-[9px] font-bold uppercase tracking-wider border transition-all flex flex-col items-center gap-1 ${
                         paymentMethod === 'Habitación' ? 'bg-[#A68A64] border-[#A68A64] text-white shadow-lg shadow-[#A68A64]/20' : 'bg-[#383838] border-[#484848] text-[#8C8C8C] hover:text-white'
                       }`}
                     >
-                      <User size={14} /> Habitación
+                      <User size={12} /> Habitación
                     </button>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#8C8C8C] mb-1 block">
+                  <label className="text-[9px] font-bold uppercase tracking-widest text-[#8C8C8C] mb-1 block">
                     {paymentMethod === 'Habitación' ? 'Habitación Ocupada *' : 'Notas del Consumo / Mesa'}
                   </label>
                   {paymentMethod === 'Habitación' ? (
@@ -586,7 +586,7 @@ export default function PosPage() {
                       value={notes}
                       onChange={e => setNotes(e.target.value)}
                       required
-                      className="w-full bg-[#383838] border border-[#484848] rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#A68A64] text-white appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23A68A64%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:0.6rem_auto] bg-[right_0.8rem_center] bg-no-repeat placeholder-[#8C8C8C]"
+                      className="w-full bg-[#383838] border border-[#484848] rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-[#A68A64] text-white appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23A68A64%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E')] bg-[length:0.6rem_auto] bg-[right_0.8rem_center] bg-no-repeat placeholder-[#8C8C8C]"
                     >
                       <option value="" className="text-[#8C8C8C]">-- Selecciona Habitación --</option>
                       {getOccupiedRoomsWithGuests().map(r => (
@@ -601,36 +601,36 @@ export default function PosPage() {
                       placeholder="Ej. Mesa 3 o Para llevar"
                       value={notes}
                       onChange={e => setNotes(e.target.value)}
-                      className="w-full bg-[#383838] border border-[#484848] rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-[#A68A64] text-white placeholder-[#8C8C8C]"
+                      className="w-full bg-[#383838] border border-[#484848] rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-[#A68A64] text-white placeholder-[#8C8C8C]"
                     />
                   )}
                 </div>
               </div>
 
               {/* Totals */}
-              <div className="bg-[#383838] p-4 rounded-2xl border border-[#484848] space-y-2 mb-4 text-xs text-left shrink-0">
+              <div className="bg-[#383838] p-3 rounded-2xl border border-[#484848] space-y-1.5 mb-3 text-[11px] text-left shrink-0">
                 <div className="flex justify-between text-[#8C8C8C]">
                   <span>Subtotal:</span>
                   <span className="text-white font-semibold">${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
                 </div>
                 {paymentMethod === 'Tarjeta' && (
-                  <div className="flex justify-between text-[#A68A64] text-[10px]">
+                  <div className="flex justify-between text-[#A68A64] text-[9px]">
                     <span>Comisión Tarjeta (5%):</span>
                     <span>+${fee.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm font-serif font-bold text-white border-t border-[#484848] pt-2 mt-1.5">
+                <div className="flex justify-between text-xs font-serif font-bold text-white border-t border-[#484848] pt-1.5 mt-1">
                   <span>Total a Cobrar:</span>
-                  <span className="text-[#A68A64] text-base">${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
+                  <span className="text-[#A68A64] text-sm">${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
 
               <button
                 onClick={handleCompleteOrder}
                 disabled={cart.length === 0}
-                className="w-full py-3.5 bg-[#A68A64] hover:bg-[#8F7553] disabled:opacity-40 disabled:hover:bg-[#A68A64] text-white font-bold rounded-2xl uppercase tracking-[0.15em] text-[10px] shadow-xl shadow-[#A68A64]/30 transition-all flex items-center justify-center gap-2 shrink-0"
+                className="w-full py-3 bg-[#A68A64] hover:bg-[#8F7553] disabled:opacity-40 disabled:hover:bg-[#A68A64] text-white font-bold rounded-xl uppercase tracking-[0.15em] text-[9px] shadow-xl shadow-[#A68A64]/30 transition-all flex items-center justify-center gap-2 shrink-0"
               >
-                <CheckCircle2 size={16} /> Confirmar Pedido y Cobrar
+                <CheckCircle2 size={14} /> Confirmar Pedido y Cobrar
               </button>
             </div>
           </div>
