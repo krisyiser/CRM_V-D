@@ -39,12 +39,13 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
     // If external waiter/tablet session, restrict navigation strictly to /pos/mobile
     if (!tauriEnv) {
-      const cleanPath = pathname.replace(/\.html$/, '');
+      const path = pathname || '';
+      const cleanPath = path.replace(/\.html$/, '');
       if (cleanPath !== '/pos/mobile') {
         router.replace('/pos/mobile');
         return;
       }
-      if (pathname.endsWith('.html')) {
+      if (path.endsWith('.html')) {
         router.replace('/pos/mobile');
         return;
       }
@@ -296,7 +297,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   // 2. Mesero POS Sandbox (External browser mobile / tablet)
   if (!currentIsTauri) {
-    const cleanPath = pathname.replace(/\.html$/, '');
+    const cleanPath = (pathname || '').replace(/\.html$/, '');
     return (
       <div className="min-h-screen w-screen bg-[#F9F7F2] text-[#4A4A4A] font-sans overflow-x-hidden">
         <div className={`w-full min-h-screen ${cleanPath === '/pos/mobile' ? 'p-0' : 'p-4 md:p-8'}`}>
