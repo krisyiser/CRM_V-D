@@ -28,6 +28,7 @@ export default function ConnectionPage() {
   const [deletingDevice, setDeletingDevice] = useState<ConnectedDevice | null>(null);
 
   const [tunnelUrl, setTunnelUrl] = useState<string>('');
+  const [connectionType, setConnectionType] = useState<'remote' | 'local'>('remote');
 
   useEffect(() => {
     // 1. Fetch the actual local IP of the PC using our Tauri Rust command and load tunnel URL from settings
@@ -44,8 +45,12 @@ export default function ConnectionPage() {
         const settings = await apiFetch<any>(API_ENDPOINTS.settings);
         const savedTunnel = settings.cloudTunnelUrl || settings.cloud_tunnel_url || '';
         setTunnelUrl(savedTunnel);
+        if (!savedTunnel) {
+          setConnectionType('local');
+        }
       } catch (err) {
         console.error("Failed to load settings:", err);
+        setConnectionType('local');
       }
     };
 
@@ -69,7 +74,7 @@ export default function ConnectionPage() {
   };
 
   const getPosUrl = () => {
-    if (tunnelUrl) {
+    if (connectionType === 'remote' && tunnelUrl) {
       return `${tunnelUrl}/pos/mobile`;
     }
     return `http://${localIp}:${port}/pos/mobile`;
@@ -185,10 +190,32 @@ export default function ConnectionPage() {
 
             <h3 className="text-lg font-heading font-medium text-[#2D2D2D]">Vincular Nueva Terminal</h3>
             <p className="text-xs text-[#8C8C8C] mt-2 mb-6 max-w-xs leading-relaxed">
-              {tunnelUrl 
+              {connectionType === 'remote' && tunnelUrl
                 ? "Conexión segura remota activa. Escanea este código QR desde cualquier red (datos móviles o Wi-Fi) para abrir el POS."
                 : "Los meseros deben conectarse al mismo Wi-Fi del restaurante y escanear este código QR para abrir el POS."}
             </p>
+
+            {/* Toggle Connection Type */}
+            {tunnelUrl && (
+              <div className="bg-[#F9F7F2] p-1 rounded-2xl border border-[#E8E4D9] flex gap-1 mb-6 text-[10px] font-bold uppercase tracking-wider w-full max-w-[280px] shrink-0">
+                <button
+                  onClick={() => setConnectionType('remote')}
+                  className={`flex-1 py-2 px-2.5 rounded-xl transition-all cursor-pointer text-center ${
+                    connectionType === 'remote' ? 'bg-[#A68A64] text-white shadow-sm' : 'text-[#8C8C8C] hover:text-[#2D2D2D]'
+                  }`}
+                >
+                  Remota (Cloud)
+                </button>
+                <button
+                  onClick={() => setConnectionType('local')}
+                  className={`flex-1 py-2 px-2.5 rounded-xl transition-all cursor-pointer text-center ${
+                    connectionType === 'local' ? 'bg-[#A68A64] text-white shadow-sm' : 'text-[#8C8C8C] hover:text-[#2D2D2D]'
+                  }`}
+                >
+                  Local (Wi-Fi)
+                </button>
+              </div>
+            )}
 
             {/* QR Code Container */}
             <div className="relative p-6 bg-[#F9F7F2] rounded-[24px] border border-[#E8E4D9]/60 shadow-inner group transition-all">

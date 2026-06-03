@@ -2101,7 +2101,8 @@ pub fn run() {
 
                 let app = Router::new()
                     .route("/api/v1/health", get(handle_health))
-                    .route_service("/pos/mobile", ServeFile::new(mobile_fallback))
+                    .route_service("/pos/mobile", ServeFile::new(mobile_fallback.clone()))
+                    .route_service("/pos/mobile/", ServeFile::new(mobile_fallback))
                     .route("/api/v1/reservations", get(handle_get_reservations).post(handle_external_reservation))
                     .route("/api/v1/settings", get(handle_get_settings))
                     .route("/api/v1/rooms", get(handle_get_rooms))

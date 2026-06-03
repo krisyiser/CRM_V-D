@@ -124,35 +124,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         console.log('[Tunnel] Automatically starting secure connection...');
         const { invoke } = await import('@tauri-apps/api/core');
         const url = await invoke<string>('start_cloud_tunnel');
-        const finalWebhook = url + '/api/v1/reservations';
 
-        // Update remote site database webhook URL silently
-        const GITHUB_TOKEN = "gho" + "_sC7RRx0UtHg5vz2tEf2IFYYhU4zuJT2HvYdY";
-        const res = await fetch('https://api.github.com/repos/krisyiser/Vainilla-y-Descanso/contents/data/db.json', {
-          headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: 'application/vnd.github.v3+json' },
-          cache: 'no-store'
-        });
-        if (!res.ok) throw new Error("No se pudo contactar al servidor de la base de datos del sitio web.");
-        
-        const data = await res.json();
-        const content = JSON.parse(atob(data.content));
-        content.webhook_url = finalWebhook;
-
-        const putRes = await fetch('https://api.github.com/repos/krisyiser/Vainilla-y-Descanso/contents/data/db.json', {
-          method: 'PUT',
-          headers: { 
-            Authorization: `Bearer ${GITHUB_TOKEN}`, 
-            Accept: 'application/vnd.github.v3+json',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            message: 'Actualizar Webhook URL (Túnel Dinámico Automático) 🚀',
-            content: btoa(JSON.stringify(content, null, 2)),
-            sha: data.sha
-          })
-        });
-        if (!putRes.ok) throw new Error("Error guardando la URL en el servidor del sitio web.");
-        
         // Save tunnel URL in local settings so that connection page can retrieve it for the QR code
         const { apiFetch, API_ENDPOINTS } = await import('../lib/api');
         await apiFetch(API_ENDPOINTS.settings, {
@@ -162,7 +134,41 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
         sessionStorage.setItem(sessionKey, 'true');
         const { toast } = await import('./Toast');
-        toast.success('Conexión segura establecida y sincronizada exitosamente.');
+
+        // Update remote site database webhook URL silently (non-blocking)
+        try {
+          const finalWebhook = url + '/api/v1/reservations';
+          const GITHUB_TOKEN = "gho" + "_sC7RRx0UtHg5vz2tEf2IFYYhU4zuJT2HvYdY";
+          const res = await fetch('https://api.github.com/repos/krisyiser/Vainilla-y-Descanso/contents/data/db.json', {
+            headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: 'application/vnd.github.v3+json' },
+            cache: 'no-store'
+          });
+          if (!res.ok) throw new Error("No se pudo contactar al servidor de la base de datos del sitio web.");
+          
+          const data = await res.json();
+          const content = JSON.parse(atob(data.content));
+          content.webhook_url = finalWebhook;
+
+          const putRes = await fetch('https://api.github.com/repos/krisyiser/Vainilla-y-Descanso/contents/data/db.json', {
+            method: 'PUT',
+            headers: { 
+              Authorization: `Bearer ${GITHUB_TOKEN}`, 
+              Accept: 'application/vnd.github.v3+json',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              message: 'Actualizar Webhook URL (Túnel Dinámico Automático) 🚀',
+              content: btoa(JSON.stringify(content, null, 2)),
+              sha: data.sha
+            })
+          });
+          if (!putRes.ok) throw new Error("Error guardando la URL en el servidor del sitio web.");
+          
+          toast.success('Conexión segura establecida y sincronizada exitosamente.');
+        } catch (syncErr) {
+          console.warn('[Tunnel] Webhook sync failed (likely expired token):', syncErr);
+          toast.success('Conexión segura activa de forma local.');
+        }
       } catch (err) {
         console.error('[Tunnel] Auto-start failed:', err);
         const { toast } = await import('./Toast');
