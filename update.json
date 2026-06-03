@@ -1,6 +1,6 @@
 {
-  "version": "0.1.3",
-  "notes": "Restauración de la pestaña de actualizaciones de software, corrección responsiva de POS y enlace QR móvil.",
+  "version": "0.1.4",
+  "notes": "Optimización definitiva del Punto de Venta (POS) en escritorio para ajustarse al layout y evitar barras de desplazamiento generales.",
   "pub_date": "2026-06-03T01:25:00Z",
   "platforms": {
     "windows-x86_64": {
