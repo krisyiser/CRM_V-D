@@ -1,11 +1,11 @@
 {
-  "version": "0.1.4",
+  "version": "0.1.5",
   "notes": "Optimización definitiva del Punto de Venta (POS) en escritorio para ajustarse al layout y evitar barras de desplazamiento generales.",
   "pub_date": "2026-06-03T01:25:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSVm04dEJWR215Tm01MjEzMTBZaTgyRjdFYkxqaENzMVFPSkw3dkJLbG8zbUZYekhpSGVWR2VWemMwZW5KMElYLzdWT1FsemRXT09uSE5xV2ZrMDYxS3VnM2xOcmdmeWdFPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNDUzODIwCWZpbGU6VmFpbmlsbGEgJiBEZXNjYW5zb18wLjEuNF94NjQtc2V0dXAuZXhlCjZkcGxwdlpVZllrOWVmaXlyTzZYK0dFQzBOT0F6ZGR0Z1lJWG5FbGVENW96THMybmJ0MkQ0cTV0b3RpaHZFdHNvaUluVHptanJ0WFY1dEtzcHJQRUFnPT0K",
-      "url": "https://github.com/krisyiser/CRM_V-D/releases/download/v0.1.4/Vainilla.Descanso_0.1.4_x64-setup.exe"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSVm04dEJWR215TnRta081eEVLRDNZeENoRjRhWStlMDFSa0I1QThUR1N1NmNuRG8rRWZGMmdnOUp3Wk85aFZxMFdHUmROaTNySWQxWmx4V0ZFbkRVck5MMkhvdHYyZ2c0PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNDY4NjczCWZpbGU6VmFpbmlsbGEgJiBEZXNjYW5zb18wLjEuNV94NjQtc2V0dXAuZXhlCkJ2MTJ4UDB1TVF0WlhmWnJBSlR3dG0rbW1TMFBwenh1eTkvNmdvdHV3ZGhFalVoTjZCRTBLNTRSaUk1Q3BSWTZ4eGhQWDhrUy83U0Z0Szg1NVJIZ0RnPT0K",
+      "url": "https://github.com/krisyiser/CRM_V-D/releases/download/v0.1.5/Vainilla.Descanso_0.1.5_x64-setup.exe"
     }
   }
 }
