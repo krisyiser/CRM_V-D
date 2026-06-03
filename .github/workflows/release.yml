@@ -62,36 +62,26 @@ jobs:
           releaseDraft: true
           prerelease: false
 
-      - name: Upload updater assets and update signature
+      - name: Extract signature and update update.json
         shell: pwsh
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           $tag = "${{ github.ref_name }}"
-          Write-Host "Uploading NSIS updater zip and sig files to release $tag..."
-          
-          # Upload zip and sig files to the release
-          $files = Get-ChildItem -Path "src-tauri/target/release/bundle/nsis/*-setup.nsis.zip*" -Recurse
-          foreach ($file in $files) {
-            Write-Host "Uploading $($file.FullName)..."
-            gh release upload $tag $file.FullName --clobber
-          }
-          
           # Extract signature and update update.json
-          $sigPath = Get-ChildItem -Path "src-tauri/target/release/bundle/nsis/*-setup.nsis.zip.sig" -Recurse | Select-Object -First 1 -ExpandProperty FullName
+          $sigPath = Get-ChildItem -Path "src-tauri/target/release/bundle/nsis/*-setup.exe.sig" -Recurse | Select-Object -First 1 -ExpandProperty FullName
           if ($sigPath -and (Test-Path $sigPath)) {
             $signature = Get-Content -Path $sigPath -Raw
             $signature = $signature.Trim()
             Write-Host "Found signature: $signature"
             
-            $zipFile = Get-ChildItem -Path "src-tauri/target/release/bundle/nsis/*-setup.nsis.zip" -Recurse | Select-Object -First 1 -ExpandProperty Name
-            Write-Host "Zip file name: $zipFile"
+            $exeFile = Get-ChildItem -Path "src-tauri/target/release/bundle/nsis/*-setup.exe" -Recurse | Select-Object -First 1 -ExpandProperty Name
+            $exeFileClean = $exeFile.Replace(" & ", ".")
+            Write-Host "Exe file name: $exeFileClean"
             
             $updateJsonPath = "update.json"
             $updateJson = Get-Content -Path $updateJsonPath | ConvertFrom-Json
             $updateJson.version = $tag.Replace("v", "")
             $updateJson.platforms."windows-x86_64".signature = $signature
-            $updateJson.platforms."windows-x86_64".url = "https://github.com/${{ github.repository }}/releases/download/$tag/$zipFile"
+            $updateJson.platforms."windows-x86_64".url = "https://github.com/${{ github.repository }}/releases/download/$tag/$exeFileClean"
             
             # Write back to update.json
             $updateJson | ConvertTo-Json -Depth 10 | Out-File -FilePath $updateJsonPath -Encoding utf8
@@ -103,5 +93,5 @@ jobs:
             git commit -m "chore: update signature for $tag [skip ci]"
             git push origin main
           } else {
-            Write-Warning "Signature file not found!"
+            Write-Error "Signature file (*-setup.exe.sig) not found!"
           }
