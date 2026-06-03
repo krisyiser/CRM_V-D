@@ -258,6 +258,19 @@ async fn init_db(app_handle: &AppHandle) -> Result<Pool<Sqlite>, sqlx::Error> {
     )
     .execute(&pool)
     .await?;
+
+    sqlx::query(
+        "CREATE TABLE IF NOT EXISTS room_charges (
+            id TEXT PRIMARY KEY,
+            room_id TEXT NOT NULL,
+            guest_name TEXT NOT NULL,
+            items_json TEXT NOT NULL,
+            total REAL NOT NULL,
+            created_at TEXT NOT NULL
+        )",
+    )
+    .execute(&pool)
+    .await?;
     
     // Seed default products if empty
     let prod_count: (i32,) = sqlx::query_as("SELECT COUNT(*) FROM products")
@@ -397,13 +410,46 @@ async fn handle_external_reservation(
     }
 
     let id = Uuid::new_v4().to_string();
+    
+    // Auto-register corresponding guest in guests table if they do not exist
+    let guest_name = payload.guest_name.trim().to_string();
+    let guest_id = Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+    let existing_guest = sqlx::query("SELECT id FROM guests WHERE name = ?")
+        .bind(&guest_name)
+        .fetch_optional(&state.db)
+        .await;
+
+    let final_guest_id = match existing_guest {
+        Ok(Some(row)) => {
+            use sqlx::Row;
+            row.get::<String, _>("id")
+        }
+        _ => {
+            let _ = sqlx::query(
+                "INSERT INTO guests (id, name, email, phone, id_number, origin, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+            )
+            .bind(&guest_id)
+            .bind(&guest_name)
+            .bind(None::<String>)
+            .bind(None::<String>)
+            .bind(None::<String>)
+            .bind("Sitio Web")
+            .bind(&now)
+            .execute(&state.db)
+            .await;
+            guest_id
+        }
+    };
+
     let result = sqlx::query(
-        "INSERT INTO reservations (id, room_id, guest_name, check_in, check_out, total_price, status, external_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO reservations (id, room_id, guest_id, guest_name, check_in, check_out, total_price, status, external_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
     .bind(&id)
     .bind(&payload.room_id)
-    .bind(&payload.guest_name)
+    .bind(Some(final_guest_id))
+    .bind(&guest_name)
     .bind(&payload.check_in)
     .bind(&payload.check_out)
     .bind(payload.total_price)
@@ -780,8 +826,10 @@ async fn handle_get_pos_sales(
 
 #[derive(Debug, Deserialize)]
 struct AddPosSalePayload {
+    #[serde(alias = "items_json", alias = "itemsJson")]
     items_json: String,
     total: f64,
+    #[serde(alias = "payment_method", alias = "paymentMethod")]
     payment_method: String,
     notes: Option<String>,
 }
@@ -825,8 +873,10 @@ async fn handle_add_pos_sale(
 #[derive(Debug, Deserialize)]
 struct UpdatePosSalePayload {
     id: String,
+    #[serde(alias = "items_json", alias = "itemsJson")]
     items_json: String,
     total: f64,
+    #[serde(alias = "payment_method", alias = "paymentMethod")]
     payment_method: String,
     notes: Option<String>,
 }
@@ -899,6 +949,346 @@ async fn handle_delete_pos_sale(
     }
 }
 
+#[derive(Debug, Deserialize)]
+struct AddGuestPayload {
+    name: String,
+    email: Option<String>,
+    phone: Option<String>,
+    #[serde(alias = "id_number", alias = "idNumber")]
+    id_number: Option<String>,
+    origin: Option<String>,
+}
+
+async fn handle_get_guests(
+    headers: HeaderMap,
+    State(state): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    if is_device_blocked(&state, &headers) {
+        return (StatusCode::UNAUTHORIZED, "Dispositivo desvinculado").into_response();
+    }
+
+    let rows = sqlx::query(
+        "SELECT id, name, email, phone, id_number, origin, created_at FROM guests ORDER BY created_at DESC"
+    )
+    .fetch_all(&state.db)
+    .await;
+
+    match rows {
+        Ok(rows) => {
+            let guests: Vec<Guest> = rows.into_iter().map(|row| {
+                use sqlx::Row;
+                Guest {
+                    id: row.get("id"),
+                    name: row.get("name"),
+                    email: row.get("email"),
+                    phone: row.get("phone"),
+                    id_number: row.get("id_number"),
+                    origin: row.get("origin"),
+                    created_at: row.get("created_at"),
+                }
+            }).collect();
+            Json(guests).into_response()
+        },
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+async fn handle_add_guest(
+    headers: HeaderMap,
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<AddGuestPayload>,
+) -> impl IntoResponse {
+    if is_device_blocked(&state, &headers) {
+        return (StatusCode::UNAUTHORIZED, "Dispositivo desvinculado").into_response();
+    }
+
+    let name = payload.name.trim().to_string();
+    let email = payload.email.as_ref().map(|s| s.trim().to_string());
+    let phone = payload.phone.as_ref().map(|s| s.trim().to_string());
+    let id_number = payload.id_number.as_ref().map(|s| s.trim().to_string());
+    let origin = payload.origin.as_ref().map(|s| s.trim().to_string());
+
+    let existing_guest = sqlx::query("SELECT id, name, email, phone, id_number, origin, created_at FROM guests WHERE name = ?")
+        .bind(&name)
+        .fetch_optional(&state.db)
+        .await;
+
+    match existing_guest {
+        Ok(Some(row)) => {
+            use sqlx::Row;
+            let existing_id = row.get::<String, _>("id");
+
+            // Update details
+            let mut update_query = String::from("UPDATE guests SET name = name");
+            if email.is_some() { update_query.push_str(", email = ?"); }
+            if phone.is_some() { update_query.push_str(", phone = ?"); }
+            if id_number.is_some() { update_query.push_str(", id_number = ?"); }
+            if origin.is_some() { update_query.push_str(", origin = ?"); }
+            update_query.push_str(" WHERE id = ?");
+
+            let mut q = sqlx::query(&update_query);
+            if let Some(ref e) = email { q = q.bind(e); }
+            if let Some(ref p) = phone { q = q.bind(p); }
+            if let Some(ref id_n) = id_number { q = q.bind(id_n); }
+            if let Some(ref o) = origin { q = q.bind(o); }
+            q = q.bind(&existing_id);
+
+            let _ = q.execute(&state.db).await;
+
+            // Fetch the updated guest to return
+            if let Ok(updated) = sqlx::query("SELECT id, name, email, phone, id_number, origin, created_at FROM guests WHERE id = ?")
+                .bind(&existing_id)
+                .fetch_one(&state.db)
+                .await
+            {
+                return Json(serde_json::json!({
+                    "id": updated.get::<String, _>("id"),
+                    "name": updated.get::<String, _>("name"),
+                    "email": updated.get::<Option<String>, _>("email"),
+                    "phone": updated.get::<Option<String>, _>("phone"),
+                    "id_number": updated.get::<Option<String>, _>("id_number"),
+                    "origin": updated.get::<Option<String>, _>("origin"),
+                    "created_at": updated.get::<String, _>("created_at")
+                })).into_response();
+            }
+
+            return Json(serde_json::json!({
+                "id": row.get::<String, _>("id"),
+                "name": row.get::<String, _>("name"),
+                "email": row.get::<Option<String>, _>("email"),
+                "phone": row.get::<Option<String>, _>("phone"),
+                "id_number": row.get::<Option<String>, _>("id_number"),
+                "origin": row.get::<Option<String>, _>("origin"),
+                "created_at": row.get::<String, _>("created_at")
+            })).into_response();
+        }
+        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+        _ => {}
+    }
+
+    let id = Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+    let result = sqlx::query(
+        "INSERT INTO guests (id, name, email, phone, id_number, origin, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+    )
+    .bind(&id)
+    .bind(&name)
+    .bind(&email)
+    .bind(&phone)
+    .bind(&id_number)
+    .bind(&origin)
+    .bind(&now)
+    .execute(&state.db)
+    .await;
+
+    match result {
+        Ok(_) => Json(serde_json::json!({
+            "id": id,
+            "name": name,
+            "email": email,
+            "phone": phone,
+            "id_number": id_number,
+            "origin": origin,
+            "created_at": now
+        })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+async fn handle_delete_guest(
+    headers: HeaderMap,
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<DeletePayload>,
+) -> impl IntoResponse {
+    if is_device_blocked(&state, &headers) {
+        return (StatusCode::UNAUTHORIZED, "Dispositivo desvinculado").into_response();
+    }
+
+    let result = sqlx::query("DELETE FROM guests WHERE id = ?")
+        .bind(payload.id)
+        .execute(&state.db)
+        .await;
+
+    match result {
+        Ok(_) => StatusCode::OK.into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct AddFeedbackPayload {
+    #[serde(alias = "guest_name", alias = "guestName")]
+    guest_name: String,
+    rating: i32,
+    comment: String,
+}
+
+async fn handle_get_feedback(
+    headers: HeaderMap,
+    State(state): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    if is_device_blocked(&state, &headers) {
+        return (StatusCode::UNAUTHORIZED, "Dispositivo desvinculado").into_response();
+    }
+
+    let rows = sqlx::query(
+        "SELECT id, guest_name, rating, comment, created_at FROM feedback ORDER BY created_at DESC"
+    )
+    .fetch_all(&state.db)
+    .await;
+
+    match rows {
+        Ok(rows) => {
+            let items: Vec<Feedback> = rows.into_iter().map(|row| {
+                use sqlx::Row;
+                Feedback {
+                    id: row.get("id"),
+                    guest_name: row.get("guest_name"),
+                    rating: row.get("rating"),
+                    comment: row.get("comment"),
+                    created_at: row.get("created_at"),
+                }
+            }).collect();
+            Json(items).into_response()
+        },
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+async fn handle_add_feedback(
+    headers: HeaderMap,
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<AddFeedbackPayload>,
+) -> impl IntoResponse {
+    if is_device_blocked(&state, &headers) {
+        return (StatusCode::UNAUTHORIZED, "Dispositivo desvinculado").into_response();
+    }
+
+    let id = Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+    let result = sqlx::query(
+        "INSERT INTO feedback (id, guest_name, rating, comment, created_at) VALUES (?, ?, ?, ?, ?)"
+    )
+    .bind(&id)
+    .bind(&payload.guest_name)
+    .bind(payload.rating)
+    .bind(&payload.comment)
+    .bind(&now)
+    .execute(&state.db)
+    .await;
+
+    match result {
+        Ok(_) => Json(serde_json::json!({
+            "id": id,
+            "guest_name": payload.guest_name,
+            "rating": payload.rating,
+            "comment": payload.comment,
+            "created_at": now
+        })).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+async fn handle_delete_feedback(
+    headers: HeaderMap,
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<DeletePayload>,
+) -> impl IntoResponse {
+    if is_device_blocked(&state, &headers) {
+        return (StatusCode::UNAUTHORIZED, "Dispositivo desvinculado").into_response();
+    }
+
+    let result = sqlx::query("DELETE FROM feedback WHERE id = ?")
+        .bind(payload.id)
+        .execute(&state.db)
+        .await;
+
+    match result {
+        Ok(_) => StatusCode::OK.into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+async fn handle_get_room_charges(
+    headers: HeaderMap,
+    State(state): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    if is_device_blocked(&state, &headers) {
+        return (StatusCode::UNAUTHORIZED, "Dispositivo desvinculado").into_response();
+    }
+
+    let rows = sqlx::query(
+        "SELECT id, room_id, guest_name, items_json, total, created_at FROM room_charges ORDER BY created_at DESC"
+    )
+    .fetch_all(&state.db)
+    .await;
+
+    match rows {
+        Ok(rows) => {
+            let items: Vec<RoomCharge> = rows.into_iter().map(|row| {
+                use sqlx::Row;
+                RoomCharge {
+                    id: row.get("id"),
+                    room_id: row.get("room_id"),
+                    guest_name: row.get("guest_name"),
+                    items_json: row.get("items_json"),
+                    total: row.get("total"),
+                    created_at: row.get("created_at"),
+                }
+            }).collect();
+            Json(items).into_response()
+        },
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct AddRoomChargePayload {
+    #[serde(alias = "room_id", alias = "roomId")]
+    room_id: String,
+    #[serde(alias = "guest_name", alias = "guestName")]
+    guest_name: String,
+    #[serde(alias = "items_json", alias = "itemsJson")]
+    items_json: String,
+    total: f64,
+}
+
+async fn handle_add_room_charge(
+    headers: HeaderMap,
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<AddRoomChargePayload>,
+) -> impl IntoResponse {
+    if is_device_blocked(&state, &headers) {
+        return (StatusCode::UNAUTHORIZED, "Dispositivo desvinculado").into_response();
+    }
+
+    let id = Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().to_rfc3339();
+    let result = sqlx::query(
+        "INSERT INTO room_charges (id, room_id, guest_name, items_json, total, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+    )
+    .bind(&id)
+    .bind(&payload.room_id)
+    .bind(&payload.guest_name)
+    .bind(&payload.items_json)
+    .bind(payload.total)
+    .bind(&now)
+    .execute(&state.db)
+    .await;
+
+    match result {
+        Ok(_) => Json(RoomCharge {
+            id,
+            room_id: payload.room_id,
+            guest_name: payload.guest_name,
+            items_json: payload.items_json,
+            total: payload.total,
+            created_at: now,
+        }).into_response(),
+        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
+    }
+}
+
 // --- Tauri Commands ---
 #[tauri::command]
 async fn get_rooms(state: tauri::State<'_, Arc<AppState>>) -> Result<Vec<Room>, String> {
@@ -962,6 +1352,7 @@ async fn add_reservation(
     total_price: Option<f64>,
 ) -> Result<String, String> {
     let id = Uuid::new_v4().to_string();
+    let guest_name = guest_name.trim().to_string();
     
     let parts: Vec<&str> = dates.split(" - ").collect();
     let check_in = parts.get(0).unwrap_or(&"").to_string();
@@ -970,13 +1361,100 @@ async fn add_reservation(
     let price = total_price.unwrap_or(0.0);
     let pstatus = payment_status.unwrap_or_else(|| "paid".to_string());
 
+    // 1. Resolve or auto-register guest in the guests table
+    let final_guest_id = if let Some(ref gid) = guest_id {
+        if gid.is_empty() {
+            None
+        } else {
+            Some(gid.clone())
+        }
+    } else {
+        None
+    };
+
+    let resolved_guest_id = match final_guest_id {
+        Some(gid) => {
+            // Check if guest with this ID exists
+            let exists = sqlx::query("SELECT id FROM guests WHERE id = ?")
+                .bind(&gid)
+                .fetch_optional(&state.db)
+                .await
+                .map_err(|e| e.to_string())?;
+
+            if exists.is_none() {
+                // If not, see if name exists
+                let by_name = sqlx::query("SELECT id FROM guests WHERE name = ?")
+                    .bind(&guest_name)
+                    .fetch_optional(&state.db)
+                    .await
+                    .map_err(|e| e.to_string())?;
+
+                if let Some(row) = by_name {
+                    use sqlx::Row;
+                    row.get::<String, _>("id")
+                } else {
+                    // Create guest with the provided ID
+                    let now = chrono::Utc::now().to_rfc3339();
+                    sqlx::query(
+                        "INSERT INTO guests (id, name, email, phone, id_number, origin, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+                    )
+                    .bind(&gid)
+                    .bind(&guest_name)
+                    .bind(None::<String>)
+                    .bind(None::<String>)
+                    .bind("N/A")
+                    .bind("Lobby")
+                    .bind(&now)
+                    .execute(&state.db)
+                    .await
+                    .map_err(|e| e.to_string())?;
+                    gid
+                }
+            } else {
+                gid
+            }
+        }
+        None => {
+            // Check if guest with this name already exists
+            let by_name = sqlx::query("SELECT id FROM guests WHERE name = ?")
+                .bind(&guest_name)
+                .fetch_optional(&state.db)
+                .await
+                .map_err(|e| e.to_string())?;
+
+            if let Some(row) = by_name {
+                use sqlx::Row;
+                row.get::<String, _>("id")
+            } else {
+                // Create a brand new guest
+                let new_gid = Uuid::new_v4().to_string();
+                let now = chrono::Utc::now().to_rfc3339();
+                sqlx::query(
+                    "INSERT INTO guests (id, name, email, phone, id_number, origin, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
+                )
+                .bind(&new_gid)
+                .bind(&guest_name)
+                .bind(None::<String>)
+                .bind(None::<String>)
+                .bind("N/A")
+                .bind("Lobby")
+                .bind(&now)
+                .execute(&state.db)
+                .await
+                .map_err(|e| e.to_string())?;
+                new_gid
+            }
+        }
+    };
+
+    // 2. Insert the reservation linking it to the resolved guest ID
     sqlx::query(
         "INSERT INTO reservations (id, room_id, guest_id, guest_name, check_in, check_out, total_price, notes, payment_status, status)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
     .bind(&id)
     .bind(&room_id)
-    .bind(&guest_id)
+    .bind(Some(resolved_guest_id))
     .bind(&guest_name)
     .bind(&check_in)
     .bind(&check_out)
@@ -1072,6 +1550,12 @@ async fn add_guest(
     id_number: Option<String>,
     origin: Option<String>,
 ) -> Result<serde_json::Value, String> {
+    let name = name.trim().to_string();
+    let email = email.as_ref().map(|s| s.trim().to_string());
+    let phone = phone.as_ref().map(|s| s.trim().to_string());
+    let id_number = id_number.as_ref().map(|s| s.trim().to_string());
+    let origin = origin.as_ref().map(|s| s.trim().to_string());
+
     let existing_guest = sqlx::query("SELECT id, name, email, phone, id_number, origin, created_at FROM guests WHERE name = ?")
         .bind(&name)
         .fetch_optional(&state.db)
@@ -1080,14 +1564,40 @@ async fn add_guest(
 
     if let Some(row) = existing_guest {
         use sqlx::Row;
+        let existing_id = row.get::<String, _>("id");
+
+        // Update details
+        let mut update_query = String::from("UPDATE guests SET name = name");
+        if email.is_some() { update_query.push_str(", email = ?"); }
+        if phone.is_some() { update_query.push_str(", phone = ?"); }
+        if id_number.is_some() { update_query.push_str(", id_number = ?"); }
+        if origin.is_some() { update_query.push_str(", origin = ?"); }
+        update_query.push_str(" WHERE id = ?");
+
+        let mut q = sqlx::query(&update_query);
+        if let Some(ref e) = email { q = q.bind(e); }
+        if let Some(ref p) = phone { q = q.bind(p); }
+        if let Some(ref id_n) = id_number { q = q.bind(id_n); }
+        if let Some(ref o) = origin { q = q.bind(o); }
+        q = q.bind(&existing_id);
+
+        let _ = q.execute(&state.db).await;
+
+        // Fetch the updated guest to return
+        let updated = sqlx::query("SELECT id, name, email, phone, id_number, origin, created_at FROM guests WHERE id = ?")
+            .bind(&existing_id)
+            .fetch_one(&state.db)
+            .await
+            .map_err(|e| e.to_string())?;
+
         return Ok(serde_json::json!({
-            "id": row.get::<String, _>("id"),
-            "name": row.get::<String, _>("name"),
-            "email": row.get::<Option<String>, _>("email"),
-            "phone": row.get::<Option<String>, _>("phone"),
-            "id_number": row.get::<Option<String>, _>("id_number"),
-            "origin": row.get::<Option<String>, _>("origin"),
-            "created_at": row.get::<String, _>("created_at")
+            "id": updated.get::<String, _>("id"),
+            "name": updated.get::<String, _>("name"),
+            "email": updated.get::<Option<String>, _>("email"),
+            "phone": updated.get::<Option<String>, _>("phone"),
+            "id_number": updated.get::<Option<String>, _>("id_number"),
+            "origin": updated.get::<Option<String>, _>("origin"),
+            "created_at": updated.get::<String, _>("created_at")
         }));
     }
 
@@ -1439,6 +1949,20 @@ async fn start_cloud_tunnel() -> Result<String, String> {
     use std::process::Stdio;
     use tokio::io::AsyncBufReadExt;
 
+    // Terminate any existing cloudflared process before starting a new one to avoid leaks or conflicts
+    #[cfg(target_os = "windows")]
+    {
+        let _ = std::process::Command::new("taskkill")
+            .args(&["/F", "/IM", "cloudflared.exe"])
+            .output();
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = std::process::Command::new("killall")
+            .arg("cloudflared")
+            .output();
+    }
+
     let npx_cmd = if cfg!(target_os = "windows") { "npx.cmd" } else { "npx" };
 
     let mut child = Command::new(npx_cmd)
@@ -1483,6 +2007,11 @@ async fn get_local_ip() -> Result<String, String> {
         .map(|addr| addr.ip().to_string())
         .map_err(|e| e.to_string())?;
     Ok(ip)
+}
+
+#[tauri::command]
+fn restart_app(app_handle: tauri::AppHandle) {
+    tauri::process::restart(&app_handle.env());
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1541,6 +2070,9 @@ pub fn run() {
                     .route("/api/v1/devices", get(handle_get_devices).delete(handle_delete_device))
                     .route("/api/v1/devices/register", post(handle_register_device))
                     .route("/api/v1/devices/block", post(handle_block_device))
+                    .route("/api/v1/guests", get(handle_get_guests).post(handle_add_guest).delete(handle_delete_guest))
+                    .route("/api/v1/feedback", get(handle_get_feedback).post(handle_add_feedback).delete(handle_delete_feedback))
+                    .route("/api/v1/room_charges", get(handle_get_room_charges).post(handle_add_room_charge))
                     .fallback_service(spa_fallback)
                     .layer(CorsLayer::new().allow_origin(Any).allow_headers(Any).allow_methods(Any))
                     .with_state(state);
@@ -1553,6 +2085,7 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             get_rooms, 
             get_reservations, 
@@ -1579,7 +2112,8 @@ pub fn run() {
             get_guests,
             add_room_charge,
             get_room_charges,
-            get_local_ip
+            get_local_ip,
+            restart_app
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

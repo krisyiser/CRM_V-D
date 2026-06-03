@@ -111,9 +111,6 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
     nights = checkIn === checkOut ? 1 : Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
   }
 
-  const roomPrice = roomDetails?.price || 0;
-  const roomTotal = roomPrice * nights;
-
   // Parse Day Pass and Parking info from currentReservation.notes
   const reservationNotes = currentReservation?.notes || '';
   const hasParking = reservationNotes.includes('Estacionamiento');
@@ -132,6 +129,12 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
       dayPassDetails = `Day Pass x${count}${isFood ? ' (con comida)' : ''}`;
     }
   }
+
+  const roomTotal = currentReservation && typeof currentReservation.totalPrice === 'number'
+    ? Math.max(0, currentReservation.totalPrice - dayPassTotal - parkingTotal)
+    : ((roomDetails?.price || 0) * nights);
+  
+  const roomPrice = nights > 0 ? (roomTotal / nights) : (roomDetails?.price || 0);
 
   const totalBarAmount = barCharges.reduce((sum, item) => sum + item.total, 0);
   const totalExtraAmount = extraCharges.reduce((sum, c) => sum + c.amount, 0);

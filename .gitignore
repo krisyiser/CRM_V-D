@@ -28,3 +28,7 @@ dist-ssr
 out/
 build/
 
+# Tauri signing keys
+tauri-key.key
+tauri-key.key.pub
+

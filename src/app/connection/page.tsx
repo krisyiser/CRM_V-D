@@ -27,9 +27,11 @@ export default function ConnectionPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [deletingDevice, setDeletingDevice] = useState<ConnectedDevice | null>(null);
 
+  const [tunnelUrl, setTunnelUrl] = useState<string>('');
+
   useEffect(() => {
-    // 1. Fetch the actual local IP of the PC using our Tauri Rust command
-    const fetchIp = async () => {
+    // 1. Fetch the actual local IP of the PC using our Tauri Rust command and load tunnel URL from settings
+    const fetchIpAndSettings = async () => {
       try {
         const ip = await invoke<string>('get_local_ip');
         setLocalIp(ip || '127.0.0.1');
@@ -37,9 +39,17 @@ export default function ConnectionPage() {
         console.error("Failed to get local IP from Rust:", err);
         setLocalIp(window.location.hostname || '127.0.0.1');
       }
+
+      try {
+        const settings = await apiFetch<any>(API_ENDPOINTS.settings);
+        const savedTunnel = settings.cloudTunnelUrl || settings.cloud_tunnel_url || '';
+        setTunnelUrl(savedTunnel);
+      } catch (err) {
+        console.error("Failed to load settings:", err);
+      }
     };
 
-    fetchIp();
+    fetchIpAndSettings();
     loadDevices();
 
     // Poll devices list every 10 seconds to keep CRM updated
@@ -59,7 +69,10 @@ export default function ConnectionPage() {
   };
 
   const getPosUrl = () => {
-    return `http://${localIp}:${port}/pos/mobile`;
+    if (tunnelUrl) {
+      return `${tunnelUrl}/pos/mobile.html`;
+    }
+    return `http://${localIp}:${port}/pos/mobile.html`;
   };
 
   const handleCopyUrl = () => {
@@ -172,7 +185,9 @@ export default function ConnectionPage() {
 
             <h3 className="text-lg font-heading font-medium text-[#2D2D2D]">Vincular Nueva Terminal</h3>
             <p className="text-xs text-[#8C8C8C] mt-2 mb-6 max-w-xs leading-relaxed">
-              Los meseros deben conectarse al mismo Wi-Fi del restaurante y escanear este código QR para abrir el POS.
+              {tunnelUrl 
+                ? "Conexión segura remota activa. Escanea este código QR desde cualquier red (datos móviles o Wi-Fi) para abrir el POS."
+                : "Los meseros deben conectarse al mismo Wi-Fi del restaurante y escanear este código QR para abrir el POS."}
             </p>
 
             {/* QR Code Container */}
@@ -378,7 +393,10 @@ export default function ConnectionPage() {
         <div className="text-left flex-1 space-y-1">
           <h4 className="text-sm font-semibold text-[#2D2D2D]">¿Cómo realizar pruebas del punto de venta en red local?</h4>
           <p className="text-xs text-[#8C8C8C] leading-relaxed">
-            1. Asegúrate de que tanto tu PC como el teléfono del mesero estén conectados a la <strong>misma red Wi-Fi</strong>.<br />
+            {tunnelUrl
+              ? "1. Escanea el código QR desde el teléfono o tablet del mesero. Te abrirá directamente el POS móvil a través de la Conexión Segura."
+              : "1. Asegúrate de que tanto tu PC como el teléfono del mesero estén conectados a la misma red Wi-Fi."}
+            <br />
             2. Escanea el código QR desde el teléfono o tablet del mesero. Te abrirá directamente el POS Sandbox. <br />
             3. Al abrirlo, el dispositivo se registrará automáticamente en este panel. ¡Registra ventas en el móvil y míralas aparecer en el historial de la PC!
           </p>

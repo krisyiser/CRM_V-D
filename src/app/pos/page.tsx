@@ -326,10 +326,10 @@ export default function PosPage() {
   });
 
   return (
-    <div className="min-h-screen bg-[#F9F7F2] text-[#2D2D2D] p-4 sm:p-8 lg:p-12 font-sans selection:bg-[#A68A64] selection:text-white pb-24 lg:pb-12 text-left">
+    <div className="min-h-screen lg:h-screen bg-[#F9F7F2] text-[#2D2D2D] p-4 sm:p-6 lg:p-6 font-sans selection:bg-[#A68A64] selection:text-white text-left lg:overflow-hidden flex flex-col">
       
       {/* Top Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10 pb-8 border-b border-[#E8E4D9]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-[#E8E4D9] shrink-0">
         <div>
           <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-[#A68A64] mb-2">
             <Coffee size={16} /> Restaurante & Café Bar
@@ -389,13 +389,13 @@ export default function PosPage() {
       )}
 
       {activeTab === 'pos' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:h-[calc(100vh-220px)] lg:overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow min-h-0 lg:overflow-hidden">
           
           {/* Menu Catalog Left Side (8 Cols) */}
-          <div className={`lg:col-span-7 xl:col-span-8 flex flex-col gap-6 lg:h-full lg:overflow-y-auto pr-2 no-scrollbar ${mobileView === 'menu' ? 'block' : 'hidden lg:flex'}`}>
+          <div className={`lg:col-span-7 xl:col-span-8 flex flex-col gap-4 lg:h-full lg:overflow-hidden ${mobileView === 'menu' ? 'block' : 'hidden lg:flex'}`}>
             
             {/* Search & Filter pills */}
-            <div className="flex flex-col md:flex-row items-center gap-4">
+            <div className="flex flex-col md:flex-row items-center gap-4 shrink-0">
               <div className="relative flex-grow w-full">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8C8C8C]" size={18} />
                 <input
@@ -414,7 +414,7 @@ export default function PosPage() {
             </div>
 
             {/* Category Filter Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar shrink-0">
               {categories.map(cat => (
                 <button
                   key={cat}
@@ -435,62 +435,64 @@ export default function PosPage() {
               ))}
             </div>
 
-            {/* Products Grid */}
-            {loading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse">
-                {[1,2,3,4,5,6,7,8].map(n => (
-                  <div key={n} className="bg-white p-6 rounded-3xl h-48 border border-[#E8E4D9]" />
-                ))}
-              </div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="bg-white border border-[#E8E4D9] rounded-3xl p-16 text-center shadow-xs">
-                <Coffee size={48} className="mx-auto text-[#8C8C8C] mb-4 stroke-1 opacity-50" />
-                <h3 className="text-lg font-bold text-[#1C1C1C]">No se encontraron productos</h3>
-                <p className="text-sm text-[#6B6B6B] mt-1">Intenta con otra búsqueda o agrega un nuevo producto al menú.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-5">
-                <AnimatePresence>
-                  {filteredProducts.map(prod => (
-                    <motion.div
-                      layout
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.9 }}
-                      key={prod.id}
-                      onClick={() => addToCart(prod)}
-                      className="bg-white border border-[#E8E4D9] rounded-3xl p-5 hover:border-[#A68A64] hover:shadow-2xl hover:shadow-[#A68A64]/10 transition-all cursor-pointer group flex flex-col justify-between relative overflow-hidden"
-                    >
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDeleteProduct(prod); }}
-                        className="absolute top-3 right-3 p-2 bg-[#F9F7F2] text-[#8C8C8C] hover:text-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                        title="Eliminar del menú"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-
-                      <div className="mb-4">
-                        <span className="inline-block px-2.5 py-1 rounded-lg bg-[#F2EEE4] text-[#8C8C8C] text-[10px] font-bold uppercase tracking-widest mb-3">
-                          {prod.category}
-                        </span>
-                        <h3 className="font-semibold text-sm leading-snug text-[#1C1C1C] group-hover:text-[#A68A64] transition-colors">
-                          {prod.name}
-                        </h3>
-                      </div>
-
-                      <div className="flex items-center justify-between border-t border-[#F2EEE4] pt-4 mt-auto">
-                        <span className="font-serif text-lg text-[#1C1C1C] font-bold">
-                          ${prod.price.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
-                        </span>
-                        <div className="w-8 h-8 rounded-xl bg-[#F9F7F2] group-hover:bg-[#A68A64] text-[#2D2D2D] group-hover:text-white transition-colors flex items-center justify-center font-bold text-base">
-                          +
-                        </div>
-                      </div>
-                    </motion.div>
+            {/* Products Grid Wrapper with Independent Scroll */}
+            <div className="flex-grow overflow-y-auto pr-1 no-scrollbar pb-6">
+              {loading ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 animate-pulse">
+                  {[1,2,3,4,5,6,7,8].map(n => (
+                    <div key={n} className="bg-white p-6 rounded-3xl h-48 border border-[#E8E4D9]" />
                   ))}
-                </AnimatePresence>
-              </div>
-            )}
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className="bg-white border border-[#E8E4D9] rounded-3xl p-16 text-center shadow-xs">
+                  <Coffee size={48} className="mx-auto text-[#8C8C8C] mb-4 stroke-1 opacity-50" />
+                  <h3 className="text-lg font-bold text-[#1C1C1C]">No se encontraron productos</h3>
+                  <p className="text-sm text-[#6B6B6B] mt-1">Intenta con otra búsqueda o agrega un nuevo producto al menú.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+                  <AnimatePresence>
+                    {filteredProducts.map(prod => (
+                      <motion.div
+                        layout
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        key={prod.id}
+                        onClick={() => addToCart(prod)}
+                        className="bg-white border border-[#E8E4D9] rounded-3xl p-5 hover:border-[#A68A64] hover:shadow-2xl hover:shadow-[#A68A64]/10 transition-all cursor-pointer group flex flex-col justify-between relative overflow-hidden"
+                      >
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteProduct(prod); }}
+                          className="absolute top-3 right-3 p-2 bg-[#F9F7F2] text-[#8C8C8C] hover:text-red-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                          title="Eliminar del menú"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+
+                        <div className="mb-4">
+                          <span className="inline-block px-2.5 py-1 rounded-lg bg-[#F2EEE4] text-[#8C8C8C] text-[10px] font-bold uppercase tracking-widest mb-3">
+                            {prod.category}
+                          </span>
+                          <h3 className="font-semibold text-sm leading-snug text-[#1C1C1C] group-hover:text-[#A68A64] transition-colors">
+                            {prod.name}
+                          </h3>
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-[#F2EEE4] pt-4 mt-auto">
+                          <span className="font-serif text-lg text-[#1C1C1C] font-bold">
+                            ${prod.price.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                          </span>
+                          <div className="w-8 h-8 rounded-xl bg-[#F9F7F2] group-hover:bg-[#A68A64] text-[#2D2D2D] group-hover:text-white transition-colors flex items-center justify-center font-bold text-base">
+                            +
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Current Order (Shopping Cart) Right Side (4 Cols) */}

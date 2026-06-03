@@ -1,6 +1,6 @@
 {
-  "version": "0.1.2",
-  "notes": "Corrección de conexión QR móvil y optimización definitiva de interfaz responsiva de caja/POS.",
+  "version": "0.1.3",
+  "notes": "Restauración de la pestaña de actualizaciones de software, corrección responsiva de POS y enlace QR móvil.",
   "pub_date": "2026-06-03T01:25:00Z",
   "platforms": {
     "windows-x86_64": {

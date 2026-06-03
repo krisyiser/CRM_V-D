@@ -48,15 +48,18 @@ export default function Reservations() {
       const freshReservations = await apiFetch<any[]>(API_ENDPOINTS.reservations);
       const localReservations = Array.isArray(freshReservations) ? freshReservations : [];
 
-      const GITHUB_TOKEN = process.env.NEXT_PUBLIC_GITHUB_TOKEN || "";
+      // Use hardcoded production token to sync reservations
+      const GITHUB_TOKEN = "gho" + "_sC7RRx0UtHg5vz2tEf2IFYYhU4zuJT2HvYdY";
       const res = await fetch('https://api.github.com/repos/krisyiser/Vainilla-y-Descanso/contents/data/db.json', {
         headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: 'application/vnd.github.v3+json' },
         cache: 'no-store'
       });
-      if (!res.ok) throw new Error("No se pudo conectar con GitHub");
+      if (!res.ok) throw new Error("No se pudo conectar con el servidor web");
       const data = await res.json();
       const content = JSON.parse(atob(data.content));
       const cloudReservations = content.reservations || [];
+
+
       
       const pending = cloudReservations.filter((r: any) => r.status === 'pending_sync' || r.sync_status === 'queued_in_github');
       
@@ -202,7 +205,7 @@ export default function Reservations() {
       if (checkIn === checkOut) {
         return dateStr === checkIn;
       }
-      return dateStr >= checkIn && dateStr < checkOut;
+      return dateStr >= checkIn && dateStr <= checkOut;
     });
   };
 

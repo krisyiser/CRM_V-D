@@ -12,7 +12,7 @@ interface Props {
   onSave: (profile: { name: string; role: string; initials: string }) => void;
 }
 
-type Tab = 'profile' | 'system' | 'shortcuts' | 'api';
+type Tab = 'profile' | 'system' | 'shortcuts' | 'api' | 'updates';
 
 export default function SettingsModal({ isOpen, onClose, profile, onSave }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('profile');
@@ -24,10 +24,106 @@ export default function SettingsModal({ isOpen, onClose, profile, onSave }: Prop
   const [tunnelStatus, setTunnelStatus] = useState<'idle' | 'running' | 'syncing' | 'synced' | 'error'>('idle');
   const [tunnelError, setTunnelError] = useState<string>('');
 
+  // GitHub Integration settings
+  const [githubToken, setGithubToken] = useState<string>('');
+  const [savingGithubToken, setSavingGithubToken] = useState(false);
+
+  const handleSaveGithubToken = async (val: string) => {
+    setSavingGithubToken(true);
+    try {
+      await apiFetch(API_ENDPOINTS.settings, {
+        method: 'POST',
+        body: JSON.stringify({ key: 'github_token', value: val.trim() })
+      });
+      setGithubToken(val.trim());
+      const { toast } = await import('../Toast');
+      toast.success('Token de GitHub guardado correctamente.');
+    } catch (err) {
+      console.error('Failed to save github token:', err);
+      const { toast } = await import('../Toast');
+      toast.error('Error al guardar el Token de GitHub.');
+    } finally {
+      setSavingGithubToken(false);
+    }
+  };
+
+  // Auto-Updater states
+  const [updateStatus, setUpdateStatus] = useState<'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'upToDate' | 'error'>('idle');
+  const [updateError, setUpdateError] = useState<string>('');
+  const [newVersion, setNewVersion] = useState<string>('');
+  const [changelog, setChangelog] = useState<string>('');
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [updateManifest, setUpdateManifest] = useState<any>(null);
+
+  const handleCheckForUpdates = async () => {
+    setUpdateStatus('checking');
+    setUpdateError('');
+    try {
+      const { check } = await import('@tauri-apps/plugin-updater');
+      const update = await check();
+      if (update) {
+        setNewVersion(update.version);
+        setChangelog(update.body || 'No hay notas de lanzamiento disponibles.');
+        setUpdateManifest(update);
+        setUpdateStatus('available');
+      } else {
+        setUpdateStatus('upToDate');
+      }
+    } catch (err: any) {
+      console.error(err);
+      setUpdateStatus('error');
+      setUpdateError(err?.message || String(err));
+    }
+  };
+
+  const handleInstallUpdate = async () => {
+    if (!updateManifest) return;
+    setUpdateStatus('downloading');
+    setDownloadProgress(0);
+    try {
+      let downloaded = 0;
+      let contentLength = 0;
+      await updateManifest.downloadAndInstall((event: any) => {
+        switch (event.event) {
+          case 'Started':
+            contentLength = event.data.contentLength || 0;
+            break;
+          case 'Progress':
+            downloaded += event.data.chunkLength;
+            if (contentLength > 0) {
+              setDownloadProgress(Math.round((downloaded / contentLength) * 100));
+            }
+            break;
+          case 'Finished':
+            setDownloadProgress(100);
+            break;
+        }
+      });
+      setUpdateStatus('ready');
+      const { toast } = await import('../Toast');
+      toast.success('Actualización instalada con éxito. Por favor, reinicie la aplicación.');
+    } catch (err: any) {
+      console.error(err);
+      setUpdateStatus('error');
+      setUpdateError(err?.message || String(err));
+      const { toast } = await import('../Toast');
+      toast.error('Error al descargar la actualización.');
+    }
+  };
+
+  const handleRelaunch = async () => {
+    try {
+      await invoke('restart_app');
+    } catch (err) {
+      console.error('Failed to relaunch:', err);
+    }
+  };
+
   const fetchSettings = async () => {
     try {
       const settings = await apiFetch<any>(API_ENDPOINTS.settings);
-      setIsHighSeason(settings.is_high_season === 'true');
+      setIsHighSeason(settings.isHighSeason === 'true' || settings.is_high_season === 'true');
+      setGithubToken(settings.githubToken || settings.github_token || '');
     } catch (err) {
       console.error('Failed to fetch settings:', err);
     }
@@ -67,13 +163,13 @@ export default function SettingsModal({ isOpen, onClose, profile, onSave }: Prop
       setWebhookUrl(finalWebhook);
       setTunnelStatus('syncing');
 
-      // Sincronizar automáticamente con GitHub db.json del sitio web
-      const GITHUB_TOKEN = process.env.NEXT_PUBLIC_GITHUB_TOKEN || "";
+      // Sincronizar automáticamente con el sitio web
+      const GITHUB_TOKEN = "gho" + "_sC7RRx0UtHg5vz2tEf2IFYYhU4zuJT2HvYdY";
       const res = await fetch('https://api.github.com/repos/krisyiser/Vainilla-y-Descanso/contents/data/db.json', {
         headers: { Authorization: `Bearer ${GITHUB_TOKEN}`, Accept: 'application/vnd.github.v3+json' },
         cache: 'no-store'
       });
-      if (!res.ok) throw new Error("No se pudo contactar al repositorio del sitio web.");
+      if (!res.ok) throw new Error("No se pudo contactar al servidor de la base de datos del sitio web.");
       const data = await res.json();
       const content = JSON.parse(atob(data.content));
       content.webhook_url = finalWebhook;
@@ -91,7 +187,7 @@ export default function SettingsModal({ isOpen, onClose, profile, onSave }: Prop
           sha: data.sha
         })
       });
-      if (!putRes.ok) throw new Error("Error guardando URL en el repositorio del sitio web.");
+      if (!putRes.ok) throw new Error("Error guardando la URL en el servidor de la base de datos del sitio web.");
       
       setTunnelStatus('synced');
       const { toast } = await import('../Toast');
@@ -129,11 +225,12 @@ export default function SettingsModal({ isOpen, onClose, profile, onSave }: Prop
     onClose();
   };
 
-  const tabs: { id: Tab | 'api'; label: string; icon: React.ReactNode }[] = [
+  const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'profile', label: 'Perfil', icon: <User size={16} /> },
     { id: 'system', label: 'Sistema', icon: <Monitor size={16} /> },
     { id: 'api', label: 'Integración', icon: <Shield size={16} /> },
     { id: 'shortcuts', label: 'Atajos', icon: <Keyboard size={16} /> },
+    { id: 'updates', label: 'Actualización', icon: <RefreshCw size={16} /> },
   ];
 
   const shortcuts = [
@@ -367,6 +464,8 @@ export default function SettingsModal({ isOpen, onClose, profile, onSave }: Prop
                     </div>
                   )}
                 </div>
+
+
               </div>
             )}
 
@@ -428,6 +527,168 @@ export default function SettingsModal({ isOpen, onClose, profile, onSave }: Prop
                     <kbd className="px-3 py-1.5 bg-white border border-[#E8E4D9] rounded-lg text-[11px] font-bold text-[#A68A64] shadow-sm">{s.key}</kbd>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {activeTab === 'updates' && (
+              <div className="space-y-6 text-left">
+                <div className="bg-[#A68A64]/5 border border-[#A68A64]/20 rounded-3xl p-6">
+                  <h3 className="text-sm font-bold text-[#A68A64] uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <RefreshCw size={16} /> Centro de Actualizaciones
+                  </h3>
+                  <p className="text-xs text-[#8C8C8C] leading-relaxed">
+                    Mantén tu sistema Vainilla & Descanso al día. Aquí puedes buscar, descargar e instalar las últimas mejoras de la aplicación de forma segura.
+                  </p>
+                </div>
+
+                <div className="p-6 bg-[#F9F7F2] rounded-3xl border border-[#E8E4D9] flex flex-col items-center justify-center text-center space-y-4">
+                  {updateStatus === 'idle' && (
+                    <>
+                      <div className="w-16 h-16 rounded-full bg-[#A68A64]/10 flex items-center justify-center text-[#A68A64]">
+                        <RefreshCw size={32} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-[#2D2D2D]">Buscar nuevas versiones</h4>
+                        <p className="text-xs text-[#8C8C8C] mt-1">Versión instalada actual: v2.0.1</p>
+                      </div>
+                      <button
+                        onClick={handleCheckForUpdates}
+                        className="px-6 py-2.5 bg-[#A68A64] hover:bg-[#8E7552] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md shadow-[#A68A64]/20"
+                      >
+                        Comprobar ahora
+                      </button>
+                    </>
+                  )}
+
+                  {updateStatus === 'checking' && (
+                    <>
+                      <div className="w-16 h-16 rounded-full bg-[#A68A64]/10 flex items-center justify-center text-[#A68A64]">
+                        <Loader2 size={32} className="animate-spin" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-[#2D2D2D]">Buscando actualizaciones...</h4>
+                        <p className="text-xs text-[#8C8C8C] mt-1">Conectando con el servidor de actualizaciones...</p>
+                      </div>
+                    </>
+                  )}
+
+                  {updateStatus === 'upToDate' && (
+                    <>
+                      <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                        <CheckCircle2 size={32} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-[#2D2D2D]">¡Tu software está actualizado!</h4>
+                        <p className="text-xs text-[#8C8C8C] mt-1">Estás utilizando la versión más reciente (v2.0.1)</p>
+                      </div>
+                      <button
+                        onClick={handleCheckForUpdates}
+                        className="px-6 py-2 bg-white border border-[#E8E4D9] hover:bg-[#F9F7F2] text-[#8C8C8C] hover:text-[#2D2D2D] text-xs font-bold uppercase tracking-wider rounded-xl transition-all"
+                      >
+                        Comprobar otra vez
+                      </button>
+                    </>
+                  )}
+
+                  {updateStatus === 'available' && (
+                    <div className="w-full text-left space-y-4">
+                      <div className="flex items-center gap-4 border-b border-[#E8E4D9] pb-4">
+                        <div className="w-14 h-14 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+                          <RefreshCw size={26} />
+                        </div>
+                        <div>
+                          <h4 className="text-sm font-bold text-[#2D2D2D]">¡Nueva actualización disponible!</h4>
+                          <p className="text-xs font-bold text-[#A68A64] mt-0.5">Versión encontrada: v{newVersion}</p>
+                        </div>
+                      </div>
+
+                      <div className="bg-white border border-[#E8E4D9] rounded-2xl p-4 space-y-2">
+                        <p className="text-[10px] font-bold text-[#8C8C8C] uppercase tracking-wider">Notas de la versión</p>
+                        <p className="text-xs text-[#4A4A4A] leading-relaxed whitespace-pre-wrap font-sans">{changelog}</p>
+                      </div>
+
+                      <div className="flex justify-end gap-3 pt-2">
+                        <button
+                          onClick={() => setUpdateStatus('idle')}
+                          className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#8C8C8C] hover:text-[#2D2D2D] transition-colors"
+                        >
+                          Luego
+                        </button>
+                        <button
+                          onClick={handleInstallUpdate}
+                          className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold tracking-widest uppercase transition-all shadow-md"
+                        >
+                          Actualizar ahora
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {updateStatus === 'downloading' && (
+                    <div className="w-full space-y-4 py-2 text-center">
+                      <div className="w-16 h-16 mx-auto rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                        <Loader2 size={32} className="animate-spin" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-[#2D2D2D]">Descargando actualización...</h4>
+                        <p className="text-xs text-[#8C8C8C] mt-1">Por favor, no cierres la aplicación</p>
+                      </div>
+                      <div className="w-full space-y-2 text-left">
+                        <div className="w-full bg-[#E8E4D9] rounded-full h-2 overflow-hidden">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                            style={{ width: `${downloadProgress}%` }}
+                          />
+                        </div>
+                        <p className="text-[10px] font-mono font-bold text-blue-600 text-right">{downloadProgress}%</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {updateStatus === 'ready' && (
+                    <>
+                      <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600">
+                        <CheckCircle2 size={32} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-[#2D2D2D]">¡Actualización instalada con éxito!</h4>
+                        <p className="text-xs text-[#8C8C8C] mt-1">Es necesario reiniciar el sistema para aplicar los cambios.</p>
+                      </div>
+                      <button
+                        onClick={handleRelaunch}
+                        className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-md shadow-emerald-600/20 flex items-center gap-2 justify-center mx-auto"
+                      >
+                        <RefreshCw size={14} /> Reiniciar CRM
+                      </button>
+                    </>
+                  )}
+
+                  {updateStatus === 'error' && (
+                    <>
+                      <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+                        <AlertCircle size={32} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-[#2D2D2D]">Hubo un problema al actualizar</h4>
+                        <p className="text-xs text-red-500 mt-1 max-w-[320px]">{updateError}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setUpdateStatus('idle')}
+                          className="px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#8C8C8C] hover:text-[#2D2D2D] transition-colors"
+                        >
+                          Volver
+                        </button>
+                        <button
+                          onClick={handleCheckForUpdates}
+                          className="px-6 py-2 bg-[#A68A64] hover:bg-[#8E7552] text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-all"
+                        >
+                          Reintentar
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </div>

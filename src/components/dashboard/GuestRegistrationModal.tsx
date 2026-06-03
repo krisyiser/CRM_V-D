@@ -53,7 +53,7 @@ export default function GuestRegistrationModal({ isOpen, onClose }: Props) {
 
           // Fetch Settings
           const settings = await apiFetch<any>(API_ENDPOINTS.settings);
-          if (settings.is_high_season === 'true') {
+          if (settings.isHighSeason === 'true' || settings.is_high_season === 'true') {
             setFormData(prev => ({ ...prev, isHighSeason: true }));
           }
 
@@ -142,11 +142,11 @@ export default function GuestRegistrationModal({ isOpen, onClose }: Props) {
       const guest = await apiFetch<any>(API_ENDPOINTS.guests, {
         method: 'POST',
         body: JSON.stringify({ 
-          name: formData.name, 
-          email: formData.email,
-          phone: formData.phone,
-          idNumber: formData.idNumber || "N/A",
-          origin: formData.origin || "No especificado"
+          name: formData.name.trim(), 
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
+          idNumber: (formData.idNumber || "N/A").trim(),
+          origin: (formData.origin || "No especificado").trim()
         })
       });
 
@@ -163,10 +163,10 @@ export default function GuestRegistrationModal({ isOpen, onClose }: Props) {
         method: 'POST',
         body: JSON.stringify({ 
           guestId: guest.id, 
-          guestName: formData.name,
+          guestName: formData.name.trim(),
           roomId: formData.roomId, 
           dates: `${formData.checkIn} - ${formData.checkOut}`,
-          notes: `${formData.notes} | Procedencia: ${formData.origin || 'N/A'} | Pago: ${formData.paymentMethod} | ${extrasStr}`,
+          notes: `${formData.notes.trim()} | Procedencia: ${(formData.origin || 'N/A').trim()} | Pago: ${formData.paymentMethod} | ${extrasStr}`,
           paymentStatus: 'paid',
           totalPrice: formData.total
         })

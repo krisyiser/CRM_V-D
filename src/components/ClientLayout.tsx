@@ -37,16 +37,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     );
     setCurrentIsTauri(tauriEnv);
 
-    // If external waiter/tablet session, restrict navigation strictly to /pos or /pos/mobile
+    // If external waiter/tablet session, restrict navigation strictly to /pos/mobile.html
     if (!tauriEnv) {
-      if (pathname.endsWith('.html')) {
-        const clean = pathname.replace(/\.html$/, '');
-        router.replace(clean);
+      if (pathname !== '/pos/mobile.html') {
+        router.replace('/pos/mobile.html');
         return;
-      }
-      const cleanPath = pathname.replace(/\.html$/, '');
-      if (cleanPath !== '/pos/mobile' && cleanPath !== '/pos') {
-        router.push('/pos/mobile');
       }
       
       // Heartbeat ping registration for network device crm management
