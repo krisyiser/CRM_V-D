@@ -1981,8 +1981,8 @@ async fn start_cloud_tunnel() -> Result<String, String> {
         Command::new(bin_path)
             .arg("tunnel")
             .arg("--url")
-            .arg("http://localhost:3001")
-            .stdout(Stdio::piped())
+            .arg("http://127.0.0.1:3001")
+            .stdout(Stdio::null())
             .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| format!("Failed to spawn bundled cloudflared: {}", e))?
@@ -1994,8 +1994,8 @@ async fn start_cloud_tunnel() -> Result<String, String> {
             .arg("cloudflared")
             .arg("tunnel")
             .arg("--url")
-            .arg("http://localhost:3001")
-            .stdout(Stdio::piped())
+            .arg("http://127.0.0.1:3001")
+            .stdout(Stdio::null())
             .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| format!("Failed to spawn cloudflared via npx: {}", e))?
@@ -2003,8 +2003,9 @@ async fn start_cloud_tunnel() -> Result<String, String> {
 
     let stderr = child.stderr.take().ok_or("No stderr")?;
     let mut reader = tokio::io::BufReader::new(stderr).lines();
+    let mut found_url = None;
 
-    for _ in 0..50 {
+    for _ in 0..100 {
         if let Ok(Some(line)) = reader.next_line().await {
             println!("cloudflared: {}", line);
             if let Some(idx) = line.find("https://") {
@@ -2012,13 +2013,26 @@ async fn start_cloud_tunnel() -> Result<String, String> {
                 let end = part.find(|c: char| c.is_whitespace() || c == '|').unwrap_or(part.len());
                 let url = &part[..end];
                 if url.contains(".trycloudflare.com") {
-                    return Ok(url.to_string());
+                    found_url = Some(url.to_string());
+                    break;
                 }
             }
+        } else {
+            break;
         }
     }
 
-    Err("Could not extract Cloudflare tunnel URL within timeout".into())
+    if let Some(url) = found_url {
+        tokio::spawn(async move {
+            let mut r = reader;
+            while let Ok(Some(_line)) = r.next_line().await {
+                // Drain stream continuously to prevent deadlock
+            }
+        });
+        Ok(url)
+    } else {
+        Err("Could not extract Cloudflare tunnel URL within timeout".into())
+    }
 }
 
 #[tauri::command]
