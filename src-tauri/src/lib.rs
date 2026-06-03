@@ -2010,9 +2010,10 @@ async fn start_cloud_tunnel() -> Result<String, String> {
             println!("cloudflared: {}", line);
             if let Some(idx) = line.find("https://") {
                 let part = &line[idx..];
-                let end = part.find(|c: char| c.is_whitespace() || c == '|').unwrap_or(part.len());
+                let end = part.find(|c: char| c.is_whitespace() || c == '|' || c == '"' || c == '\'' || c == ',' || c == '}' || c == '{' || c == ')')
+                    .unwrap_or(part.len());
                 let url = &part[..end];
-                if url.contains(".trycloudflare.com") {
+                if url.contains(".trycloudflare.com") && !url.contains("api.trycloudflare.com") {
                     found_url = Some(url.to_string());
                     break;
                 }
