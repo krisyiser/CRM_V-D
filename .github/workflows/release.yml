@@ -59,7 +59,7 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: 'Vainilla & Descanso v__VERSION__'
           releaseBody: 'Notas de la versión de Vainilla & Descanso.'
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
 
       - name: Extract signature and update update.json

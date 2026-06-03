@@ -326,7 +326,7 @@ export default function PosPage() {
   });
 
   return (
-    <div className="min-h-screen lg:h-[calc(100vh-210px)] bg-[#F9F7F2] text-[#2D2D2D] p-4 sm:p-6 lg:p-0 font-sans selection:bg-[#A68A64] selection:text-white text-left lg:overflow-hidden flex flex-col">
+    <div className="min-h-screen lg:min-h-0 lg:h-full bg-[#F9F7F2] text-[#2D2D2D] p-4 sm:p-6 lg:p-0 font-sans selection:bg-[#A68A64] selection:text-white text-left lg:overflow-hidden flex flex-col">
       
       {/* Top Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-[#E8E4D9] shrink-0">

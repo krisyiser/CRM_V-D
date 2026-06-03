@@ -434,13 +434,13 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </div>
         </div>
         
-        <div className="flex-grow overflow-y-auto p-8 lg:p-12 custom-scrollbar-light">
+        <div className={`flex-grow ${pathname === '/pos' ? 'overflow-y-auto lg:overflow-hidden lg:flex lg:flex-col p-6 lg:p-8' : 'overflow-y-auto p-8 lg:p-12'} custom-scrollbar-light`}>
           <motion.div 
             key={pathname}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="max-w-7xl mx-auto"
+            className={`max-w-7xl mx-auto w-full ${pathname === '/pos' ? 'lg:h-full lg:flex lg:flex-col lg:min-h-0' : ''}`}
           >
             {children}
           </motion.div>
