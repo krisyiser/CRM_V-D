@@ -389,10 +389,10 @@ export default function PosPage() {
       )}
 
       {activeTab === 'pos' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:h-[calc(100vh-220px)] lg:overflow-hidden">
           
           {/* Menu Catalog Left Side (8 Cols) */}
-          <div className={`lg:col-span-7 xl:col-span-8 flex flex-col gap-6 ${mobileView === 'menu' ? 'block' : 'hidden lg:flex'}`}>
+          <div className={`lg:col-span-7 xl:col-span-8 flex flex-col gap-6 lg:h-full lg:overflow-y-auto pr-2 no-scrollbar ${mobileView === 'menu' ? 'block' : 'hidden lg:flex'}`}>
             
             {/* Search & Filter pills */}
             <div className="flex flex-col md:flex-row items-center gap-4">
@@ -494,8 +494,8 @@ export default function PosPage() {
           </div>
 
           {/* Current Order (Shopping Cart) Right Side (4 Cols) */}
-          <div className={`lg:col-span-5 xl:col-span-4 flex flex-col ${mobileView === 'cart' ? 'block' : 'hidden lg:flex'}`}>
-            <div className="bg-[#2D2D2D] text-white rounded-3xl p-5 md:p-6 shadow-2xl flex flex-col lg:sticky lg:top-6 lg:h-[calc(100vh-160px)] border border-[#3D3D3D] overflow-hidden">
+          <div className={`lg:col-span-5 xl:col-span-4 flex flex-col lg:h-full ${mobileView === 'cart' ? 'block' : 'hidden lg:flex'}`}>
+            <div className="bg-[#2D2D2D] text-white rounded-3xl p-5 md:p-6 shadow-2xl flex flex-col lg:h-full border border-[#3D3D3D] overflow-hidden">
               
               <div className="flex items-center justify-between pb-4 border-b border-[#3D3D3D] mb-4 shrink-0">
                 <div className="flex items-center gap-3">

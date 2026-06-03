@@ -1,11 +1,11 @@
 {
-  "version": "0.1.1",
-  "notes": "Mejora en la interfaz del POS del restaurante/bar para cobros rápidos y navegación optimizada.",
-  "pub_date": "2026-06-03T00:25:00Z",
+  "version": "0.1.2",
+  "notes": "Corrección de conexión QR móvil y optimización definitiva de interfaz responsiva de caja/POS.",
+  "pub_date": "2026-06-03T01:25:00Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSVm04dEJWR215Tm9PUVlxbWpRUmZIMVYrMmR4OTMxOFJ5MW02dmZ3VXdHZXk3bFg4WDF6OGFnTjVES2dObVZRRm9RRlFuZVQzSllpbnRZOXgvZTd1V3NrdTNYVitmMGdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzgwNDQ5NDcwCWZpbGU6VmFpbmlsbGEgJiBEZXNjYW5zb18wLjEuMV94NjQtc2V0dXAuZXhlClpGQ3UvSHZObHJLSVp4c2RlbkR2enVvWHJ4QzVFMkl6U3Axakx0elFaaDc3NWd2d2hsSEhTUWdWdFVUdTBMZWJ2cHdoVHQ2TDF1b1EyM2R6Qyt2ekJnPT0K",
-      "url": "https://github.com/krisyiser/CRM_V-D/releases/download/v0.1.1/Vainilla.Descanso_0.1.1_x64-setup.exe"
+      "signature": "REEMPLAZAR_CON_EL_CONTENIDO_DEL_ARCHIVO_MSI_ZIP_SIG",
+      "url": "https://github.com/krisyiser/CRM_V-D/releases/download/v0.1.2/Vainilla.Descanso_0.1.2_x64-setup.exe"
     }
   }
 }
