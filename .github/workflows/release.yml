@@ -37,6 +37,15 @@ jobs:
         run: |
           # No se necesitan dependencias adicionales usualmente en Windows-latest
 
+      - name: Clean signing key
+        shell: pwsh
+        run: |
+          $key = @"
+          ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          "@
+          $cleanKey = $key.Trim() -replace '\s',''
+          "TAURI_SIGNING_PRIVATE_KEY=$cleanKey" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
       - name: Install frontend dependencies
         run: npm ci
 
@@ -44,7 +53,7 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ env.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
