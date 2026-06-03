@@ -49,6 +49,12 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Download cloudflared binary for Tauri sidecar
+        shell: pwsh
+        run: |
+          mkdir src-tauri/binaries -Force
+          Invoke-WebRequest -Uri "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe" -OutFile "src-tauri/binaries/cloudflared-x86_64-pc-windows-msvc.exe"
+
       - name: Build frontend and compile Tauri
         uses: tauri-apps/tauri-action@v0
         env:

@@ -1963,18 +1963,43 @@ async fn start_cloud_tunnel() -> Result<String, String> {
             .output();
     }
 
-    let npx_cmd = if cfg!(target_os = "windows") { "npx.cmd" } else { "npx" };
+    let app_dir = std::env::current_exe()
+        .map_err(|e| format!("Failed to get current exe path: {}", e))?
+        .parent()
+        .ok_or("Failed to get parent directory of executable")?
+        .to_path_buf();
 
-    let mut child = Command::new(npx_cmd)
-        .arg("-y")
-        .arg("cloudflared")
-        .arg("tunnel")
-        .arg("--url")
-        .arg("http://localhost:3001")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("Failed to spawn cloudflared: {}", e))?;
+    // 1. Try production path (cloudflared.exe adjacent to main executable)
+    let mut bin_path = app_dir.join("cloudflared.exe");
+    if !bin_path.exists() {
+        // 2. Try development path (with target triple suffix)
+        bin_path = app_dir.join("cloudflared-x86_64-pc-windows-msvc.exe");
+    }
+
+    let mut child = if bin_path.exists() {
+        println!("Using bundled cloudflared binary: {:?}", bin_path);
+        Command::new(bin_path)
+            .arg("tunnel")
+            .arg("--url")
+            .arg("http://localhost:3001")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Failed to spawn bundled cloudflared: {}", e))?
+    } else {
+        println!("Bundled cloudflared not found, falling back to npx");
+        let npx_cmd = if cfg!(target_os = "windows") { "npx.cmd" } else { "npx" };
+        Command::new(npx_cmd)
+            .arg("-y")
+            .arg("cloudflared")
+            .arg("tunnel")
+            .arg("--url")
+            .arg("http://localhost:3001")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("Failed to spawn cloudflared via npx: {}", e))?
+    };
 
     let stderr = child.stderr.take().ok_or("No stderr")?;
     let mut reader = tokio::io::BufReader::new(stderr).lines();
