@@ -1,0 +1,54 @@
+name: Release Tauri App
+
+on:
+  push:
+    tags:
+      - 'v*' # Dispara el workflow al crear etiquetas como v0.1.0, v1.0.0, etc.
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest] # Puedes agregar macos-latest y ubuntu-latest si lo deseas en el futuro
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install system dependencies (Windows)
+        run: |
+          # No se necesitan dependencias adicionales usualmente en Windows-latest
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build frontend and compile Tauri
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Vainilla & Descanso v__VERSION__'
+          releaseBody: 'Notas de la versión de Vainilla & Descanso.'
+          releaseDraft: true
+          prerelease: false
