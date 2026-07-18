@@ -1,6 +1,14 @@
 import type { Metadata, Viewport } from "next";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 import ClientLayout from "@/components/ClientLayout";
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  display: "swap",
+  variable: "--font-outfit",
+});
 
 export const metadata: Metadata = {
   title: "Vainilla & Descanso - Lobby Concierge",
@@ -48,7 +56,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body>
+      <body className={`${outfit.variable} font-sans`}>
         <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
