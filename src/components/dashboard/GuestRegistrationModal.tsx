@@ -1,16 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Bed, ArrowRight, Loader2, CheckCircle2, Phone, Plus } from 'lucide-react';
-import { API_ENDPOINTS, apiFetch } from '../../lib/api';
+import { X, User, Bed, ArrowRight, Loader2, CheckCircle2, Plus } from 'lucide-react';
+import { API, apiFetch } from '@/lib/api';
+import type { Room, Guest } from '@/types';
+import { toast } from '@/components/Toast';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  room?: Room | null;
+  onSuccess?: () => void;
 }
 
-export default function GuestRegistrationModal({ isOpen, onClose }: Props) {
+export default function GuestRegistrationModal({ isOpen, onClose, room, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
-  const [rooms, setRooms] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [fetchingRooms, setFetchingRooms] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -18,14 +22,14 @@ export default function GuestRegistrationModal({ isOpen, onClose }: Props) {
     email: '',
     checkIn: '',
     checkOut: '',
-    roomId: '',
+    roomId: room?.id || '',
     extraPersons: 0,
     extraCharge: 0,
     dayPasses: 0,
     dayPassWithFood: false,
     parking: false,
-    paymentMethod: 'Efectivo', // Transferencia, Tarjeta, Efectivo
-    isHighSeason: false, // Override all nights to 'alta'
+    paymentMethod: 'Efectivo',
+    isHighSeason: false,
     basePrice: 0,
     total: 0,
     notes: '',
@@ -36,33 +40,33 @@ export default function GuestRegistrationModal({ isOpen, onClose }: Props) {
   const [newConcept, setNewConcept] = useState('');
   const [newAmount, setNewAmount] = useState('');
 
-  const [pricingMatrix, setPricingMatrix] = useState<Record<string, any>>({});
+  const pricingMatrix: Record<string, any> = {
+    '101': { alta: 2800, baja: 2300, semana: 1900 },
+    '102': { alta: 1950, baja: 1600, semana: 1200 },
+    '105': { alta: 1950, baja: 1600, semana: 1200 },
+    '104': { alta: 1400, baja: 1100, semana: 900 },
+    '103': { alta: 1400, baja: 1100, semana: 900 },
+  };
 
   // Fetch rooms when modal opens
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen) {
       const loadData = async () => {
         setFetchingRooms(true);
         try {
-          const data = await apiFetch<any[]>(API_ENDPOINTS.rooms);
+          const data = await apiFetch<Room[]>(API.rooms);
           const available = data.filter(r => r.status === 'available');
           setRooms(available);
-          if (available.length > 0) {
+          if (room) {
+            setFormData(prev => ({ ...prev, roomId: room.id }));
+          } else if (available.length > 0) {
             setFormData(prev => ({ ...prev, roomId: available[0].id }));
           }
 
           // Fetch Settings
-          const settings = await apiFetch<any>(API_ENDPOINTS.settings);
-          if (settings.isHighSeason === 'true' || settings.is_high_season === 'true') {
+          const settings = await apiFetch<Record<string, string>>(API.settings);
+          if (settings.is_high_season === 'true') {
             setFormData(prev => ({ ...prev, isHighSeason: true }));
-          }
-
-          // Fetch Pricing dynamically if API supports it (fallback to default)
-          try {
-            const pricingData = await apiFetch<any>('pricing'); // We will assume an endpoint
-            if (pricingData && Object.keys(pricingData).length > 0) setPricingMatrix(pricingData);
-          } catch (e) {
-            console.log('Using fallback pricing');
           }
         } catch (error) {
           console.error("Error fetching available rooms:", error);
@@ -72,33 +76,32 @@ export default function GuestRegistrationModal({ isOpen, onClose }: Props) {
       };
       loadData();
     }
-  }, [isOpen]);
+  }, [isOpen, room]);
 
   const getPriceForDate = (dateStr: string, roomId: string, forceHigh: boolean) => {
     if (!dateStr) return 0;
     
-    // Dynamic Pricing Matrix or Fallback
     const prices: Record<string, any> = Object.keys(pricingMatrix).length > 0 ? pricingMatrix : {
-      '101': { alta: 2800, baja: 2300, semana: 1900 }, // Moros
-      '102': { alta: 1950, baja: 1600, semana: 1200 }, // Volador
-      '105': { alta: 1950, baja: 1600, semana: 1200 }, // Santiagueros
-      '104': { alta: 1400, baja: 1100, semana: 900 },  // Negritos
-      '103': { alta: 1400, baja: 1100, semana: 900 },  // Guaguas
+      '101': { alta: 2800, baja: 2300, semana: 1900 },
+      '102': { alta: 1950, baja: 1600, semana: 1200 },
+      '105': { alta: 1950, baja: 1600, semana: 1200 },
+      '104': { alta: 1400, baja: 1100, semana: 900 },
+      '103': { alta: 1400, baja: 1100, semana: 900 },
     };
 
     if (forceHigh) return prices[roomId]?.alta || 0;
 
-    const date = new Date(dateStr + 'T12:00:00'); // Use noon to avoid TZ issues
-    const day = date.getDay(); // 0 (Sun) to 6 (Sat)
+    const date = new Date(dateStr + 'T12:00:00');
+    const day = date.getDay();
     
-    let type = 'semana'; // Default (Mon-Wed)
-    if (day === 6) type = 'alta'; // Sat
-    if (day === 0 || day === 4 || day === 5) type = 'baja'; // Sun, Thu, Fri
+    let type = 'semana';
+    if (day === 6) type = 'alta';
+    if (day === 0 || day === 4 || day === 5) type = 'baja';
 
     return prices[roomId]?.[type] || 0;
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!formData.checkIn || !formData.checkOut || !formData.roomId) return;
 
     const start = new Date(formData.checkIn + 'T12:00:00');
@@ -110,7 +113,6 @@ export default function GuestRegistrationModal({ isOpen, onClose }: Props) {
       totalStayPrice = getPriceForDate(formData.checkIn, formData.roomId, formData.isHighSeason);
       nights = 1;
     } else {
-      // Calculate per night
       for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
         const currentStr = d.toISOString().split('T')[0];
         totalStayPrice += getPriceForDate(currentStr, formData.roomId, formData.isHighSeason);
@@ -138,14 +140,13 @@ export default function GuestRegistrationModal({ isOpen, onClose }: Props) {
     setLoading(true);
 
     try {
-      // 1. Create Guest with optional ID
-      const guest = await apiFetch<any>(API_ENDPOINTS.guests, {
+      const guest = await apiFetch<Guest>(API.guests, {
         method: 'POST',
         body: JSON.stringify({ 
           name: formData.name.trim(), 
-          email: formData.email.trim(),
-          phone: formData.phone.trim(),
-          idNumber: (formData.idNumber || "N/A").trim(),
+          email: formData.email.trim() || null,
+          phone: formData.phone.trim() || null,
+          id_number: (formData.idNumber || "N/A").trim(),
           origin: (formData.origin || "No especificado").trim()
         })
       });
@@ -158,23 +159,21 @@ export default function GuestRegistrationModal({ isOpen, onClose }: Props) {
       const dayPassInfo = formData.dayPasses > 0 ? ` | Day Pass x${formData.dayPasses}${formData.dayPassWithFood ? ' (con comida)' : ''}` : '';
       const extrasStr = `Extras: ${extraChargesList.map(e => e.concept + '($' + e.amount + ')').join(', ')}${dayPassInfo}${parkingInfo}`;
 
-      // 2. Create Reservation with Notes and Payment
-      await apiFetch(API_ENDPOINTS.reservations, {
+      await apiFetch(API.reservations, {
         method: 'POST',
         body: JSON.stringify({ 
-          guestId: guest.id, 
-          guestName: formData.name.trim(),
-          roomId: formData.roomId, 
-          dates: `${formData.checkIn} - ${formData.checkOut}`,
+          guest_id: guest.id, 
+          guest_name: formData.name.trim(),
+          room_id: formData.roomId, 
+          check_in: formData.checkIn,
+          check_out: formData.checkOut,
           notes: `${formData.notes.trim()} | Procedencia: ${(formData.origin || 'N/A').trim()} | Pago: ${formData.paymentMethod} | ${extrasStr}`,
-          paymentStatus: 'paid',
-          totalPrice: formData.total
+          payment_status: 'paid',
+          total_price: formData.total
         })
       });
 
-      // 3. Update Room Status ONLY if check-in is today or earlier
       if (formData.checkIn) {
-        // Get today's local date as YYYY-MM-DD format
         const today = new Date();
         const year = today.getFullYear();
         const month = String(today.getMonth() + 1).padStart(2, '0');
@@ -182,21 +181,19 @@ export default function GuestRegistrationModal({ isOpen, onClose }: Props) {
         const todayLocalStr = `${year}-${month}-${day}`;
         
         if (formData.checkIn <= todayLocalStr) {
-          await apiFetch(API_ENDPOINTS.rooms, {
+          await apiFetch(API.rooms, {
             method: 'PATCH',
             body: JSON.stringify({ id: formData.roomId, status: 'occupied' })
           });
         }
       }
 
-      onClose();
-      const { toast } = await import('../Toast');
       toast.success('Check-in completado exitosamente.');
-      window.location.reload(); 
+      onClose();
+      if (onSuccess) onSuccess();
     } catch (error) {
       console.error(error);
-      const { toast } = await import('../Toast');
-      toast.error('Error al procesar el registro: Probablemente el sistema está en modo offline.');
+      toast.error('Error al procesar el registro.');
     } finally {
       setLoading(false);
     }
@@ -227,9 +224,7 @@ export default function GuestRegistrationModal({ isOpen, onClose }: Props) {
               <div>
                 <h2 className="text-2xl font-heading font-medium text-[#2D2D2D]">Check-in de Huésped</h2>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[10px] text-[#A68A64] font-bold uppercase tracking-widest">Protocolo Lobby v2.0</span>
-                  <span className="text-[10px] text-[#8C8C8C]">•</span>
-                  <span className="text-[10px] text-[#8C8C8C] font-bold uppercase tracking-widest">Temporada Alta</span>
+                  <span className="text-[10px] text-[#A68A64] font-bold uppercase tracking-widest">Protocolo Lobby PWA</span>
                 </div>
               </div>
             </div>
@@ -360,7 +355,7 @@ export default function GuestRegistrationModal({ isOpen, onClose }: Props) {
                         </div>
                       </div>
                       <div className="space-y-2 col-span-2">
-                        <label className="text-[11px] font-bold text-[#8C8C8C] uppercase tracking-wider ml-1">Otros Cargos (Estacionamiento, Bebidas, etc.)</label>
+                        <label className="text-[11px] font-bold text-[#8C8C8C] uppercase tracking-wider ml-1">Otros Cargos</label>
                         <div className="flex flex-col gap-2">
                           {extraChargesList.map((charge, idx) => (
                             <div key={idx} className="flex justify-between items-center bg-white border border-[#E8E4D9] px-4 py-2 rounded-xl text-xs">

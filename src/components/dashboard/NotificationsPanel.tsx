@@ -1,14 +1,14 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Bell, BedDouble, CalendarCheck, LogIn, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { X, Bell, BedDouble, LogIn, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { API, apiFetch } from '@/lib/api';
+import type { Notification } from '@/types';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
-
-import { API_ENDPOINTS, apiFetch } from '../../lib/api';
 
 const iconMap: Record<string, React.ReactNode> = {
   checkin: <LogIn size={16} />,
@@ -27,7 +27,7 @@ const colorMap: Record<string, string> = {
 };
 
 export default function NotificationsPanel({ isOpen, onClose }: Props) {
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -36,8 +36,8 @@ export default function NotificationsPanel({ isOpen, onClose }: Props) {
       const loadNotifications = async () => {
         setLoading(true);
         try {
-          const data = await apiFetch<any[]>(API_ENDPOINTS.notifications);
-          setNotifications(data);
+          const data = await apiFetch<Notification[]>(API.notifications);
+          setNotifications(data || []);
         } catch (error) {
           console.error("Error loading notifications:", error);
         } finally {
@@ -52,7 +52,7 @@ export default function NotificationsPanel({ isOpen, onClose }: Props) {
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     window.dispatchEvent(new Event('notifications_updated'));
     try {
-      await apiFetch(API_ENDPOINTS.notifications, { method: 'PATCH', body: JSON.stringify({ action: 'mark_all_read' }) });
+      await apiFetch(API.notifications, { method: 'PATCH', body: JSON.stringify({ action: 'mark_all_read' }) });
     } catch (e) {
       console.error(e);
     }
@@ -62,7 +62,7 @@ export default function NotificationsPanel({ isOpen, onClose }: Props) {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
     window.dispatchEvent(new Event('notifications_updated'));
     try {
-      await apiFetch(API_ENDPOINTS.notifications, { method: 'PATCH', body: JSON.stringify({ id, read: true }) });
+      await apiFetch(API.notifications, { method: 'PATCH', body: JSON.stringify({ id, read: true }) });
     } catch (e) {
       console.error(e);
     }
@@ -91,7 +91,7 @@ export default function NotificationsPanel({ isOpen, onClose }: Props) {
                 <div className="w-9 h-9 rounded-xl bg-[#A68A64] flex items-center justify-center text-white shadow-lg shadow-[#A68A64]/20">
                   <Bell size={16} />
                 </div>
-                <div>
+                <div className="text-left">
                   <p className="text-sm font-semibold text-[#2D2D2D]">Notificaciones</p>
                   {unreadCount > 0 && (
                     <p className="text-[10px] text-[#A68A64] font-bold uppercase tracking-widest">{unreadCount} sin leer</p>
@@ -137,7 +137,9 @@ export default function NotificationsPanel({ isOpen, onClose }: Props) {
                         {!notif.read && <span className="w-2 h-2 rounded-full bg-[#A68A64] shrink-0" />}
                       </div>
                       <p className="text-xs text-[#8C8C8C] mt-0.5 leading-relaxed">{notif.message}</p>
-                      <p className="text-[10px] text-[#A68A64] font-bold uppercase tracking-widest mt-2">{notif.timestamp}</p>
+                      <p className="text-[10px] text-[#A68A64] font-bold uppercase tracking-widest mt-2">
+                        {new Date(notif.timestamp).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
                     </div>
                   </div>
                 ))

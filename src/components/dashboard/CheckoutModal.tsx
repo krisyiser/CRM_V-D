@@ -1,16 +1,17 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, LogOut, Plus, Trash2, CheckCircle2, DollarSign } from 'lucide-react';
-import { API_ENDPOINTS, apiFetch } from '../../lib/api';
-import { toast } from '../Toast';
+import { X, LogOut, Plus, Trash2, DollarSign } from 'lucide-react';
+import { API, apiFetch } from '@/lib/api';
+import type { Room, Reservation, PosSale } from '@/types';
+import { toast } from '@/components/Toast';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   roomId: string;
   roomName: string;
-  currentReservation: any;
+  currentReservation: Reservation | null;
   onSuccess: () => void;
 }
 
@@ -39,7 +40,7 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
   // Bar charges and room info states
   const [barCharges, setBarCharges] = useState<any[]>([]);
   const [loadingBarCharges, setLoadingBarCharges] = useState(false);
-  const [roomDetails, setRoomDetails] = useState<any>(null);
+  const [roomDetails, setRoomDetails] = useState<Room | null>(null);
 
   const ratingOptions = ['Excelente', 'Buena', 'Regular', 'Mala'];
 
@@ -53,10 +54,10 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
   const fetchBarCharges = async () => {
     try {
       setLoadingBarCharges(true);
-      const sales = await apiFetch<any[]>(API_ENDPOINTS.posSales);
+      const sales = await apiFetch<PosSale[]>(API.posSales);
       if (Array.isArray(sales)) {
         const roomSales = sales.filter(sale => {
-          if (sale.paymentMethod !== 'Habitación') return false;
+          if (sale.payment_method !== 'Habitación') return false;
           const notesStr = sale.notes || '';
           const roomPattern = new RegExp(`\\b${roomId}\\b`);
           return roomPattern.test(notesStr);
@@ -65,14 +66,14 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
         const itemsList: any[] = [];
         roomSales.forEach(sale => {
           try {
-            const parsedItems = JSON.parse(sale.itemsJson || '[]');
+            const parsedItems = JSON.parse(sale.items_json || '[]');
             parsedItems.forEach((item: any) => {
               itemsList.push({
                 name: item.name,
                 price: item.price,
                 quantity: item.quantity,
                 total: item.price * item.quantity,
-                date: sale.createdAt
+                date: sale.created_at
               });
             });
           } catch (e) {
@@ -90,7 +91,7 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
 
   const fetchRoomDetails = async () => {
     try {
-      const roomsList = await apiFetch<any[]>(API_ENDPOINTS.rooms);
+      const roomsList = await apiFetch<Room[]>(API.rooms);
       if (Array.isArray(roomsList)) {
         const found = roomsList.find(r => r.id === roomId);
         setRoomDetails(found || null);
@@ -130,8 +131,8 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
     }
   }
 
-  const roomTotal = currentReservation && typeof currentReservation.totalPrice === 'number'
-    ? Math.max(0, currentReservation.totalPrice - dayPassTotal - parkingTotal)
+  const roomTotal = currentReservation && typeof currentReservation.total_price === 'number'
+    ? Math.max(0, currentReservation.total_price - dayPassTotal - parkingTotal)
     : ((roomDetails?.price || 0) * nights);
   
   const roomPrice = nights > 0 ? (roomTotal / nights) : (roomDetails?.price || 0);
@@ -163,11 +164,10 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
     setExtraCharges(extraCharges.filter(c => c.id !== id));
   };
 
-
   const handleSubmitCheckout = async () => {
     setSubmitting(true);
     try {
-      const guestName = currentReservation?.guestName || 'Huésped';
+      const guestName = currentReservation?.guest_name || 'Huésped';
 
       // 1. Serialize entire satisfaction survey to save in the comment field
       const fullFeedbackData = {
@@ -179,23 +179,23 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
         }
       };
 
-      // Send feedback using add_feedback Tauri command/API
-      await apiFetch(API_ENDPOINTS.feedback, {
+      // Send feedback using add_feedback
+      await apiFetch(API.feedback, {
         method: 'POST',
         body: JSON.stringify({
-          guestName: guestName,
+          guest_name: guestName,
           rating: survey.overallScore,
           comment: JSON.stringify(fullFeedbackData)
         })
       });
 
-      // 2. Perform checkout (set room to available/maintenance & delete reservation)
-      await apiFetch(API_ENDPOINTS.rooms, {
+      // 2. Perform checkout (set room to available & delete reservation)
+      await apiFetch(API.rooms, {
         method: 'PATCH',
-        body: JSON.stringify({ id: roomId, status: 'available' }) // Free the room to available
+        body: JSON.stringify({ id: roomId, status: 'available' })
       });
 
-      // 3. Save the complete stay report inside room_charges SQLite table
+      // 3. Save the complete stay report inside room_charges table
       try {
         const stayReport = {
           checkIn: checkIn || '',
@@ -218,12 +218,12 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
           checkoutPaid: chargesPaid
         };
 
-        await apiFetch(API_ENDPOINTS.roomCharges, {
+        await apiFetch(API.roomCharges, {
           method: 'POST',
           body: JSON.stringify({
-            roomId: roomId,
-            guestName: guestName,
-            itemsJson: JSON.stringify(stayReport),
+            room_id: roomId,
+            guest_name: guestName,
+            items_json: JSON.stringify(stayReport),
             total: grandTotal
           })
         });
@@ -232,8 +232,7 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
       }
 
       if (currentReservation) {
-        // Delete active reservation from SQLite to free the room
-        await apiFetch(API_ENDPOINTS.reservations, {
+        await apiFetch(API.reservations, {
           method: 'DELETE',
           body: JSON.stringify({ id: currentReservation.id })
         });
@@ -255,7 +254,6 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[150] overflow-y-auto">
-        {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -264,7 +262,6 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
           className="fixed inset-0 bg-[#2D2D2D]/60 backdrop-blur-sm"
         />
 
-        {/* Modal Wrapper */}
         <div className="flex min-h-screen items-center justify-center p-4 md:p-6 relative">
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -294,7 +291,7 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
             </div>
 
             {/* Scrollable Body */}
-            <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-10 custom-scrollbar-light text-left">
+            <div className="flex-grow overflow-y-auto p-6 md:p-8 space-y-10 custom-scrollbar-light text-left">
               
               {/* Satisfaction Survey Block */}
               <div className="space-y-6">
@@ -304,7 +301,6 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {/* Category survey renderer */}
                   {[
                     { key: 'reception', label: 'Recepción y Check-in', question: '¿Cómo califica su experiencia al llegar?' },
                     { key: 'staff', label: 'Atención del Personal', question: '¿Cómo fue el trato recibido?' },
@@ -418,7 +414,6 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
                   </div>
                 </div>
 
-                {/* Suggestions text area */}
                 <div className="space-y-2 text-left">
                   <label className="text-[11px] font-bold text-[#8C8C8C] uppercase tracking-widest ml-1">Sugerencias o comentarios generales</label>
                   <textarea
@@ -497,9 +492,9 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
 
                 {/* Grand total preview of Stay */}
                 <div className="bg-[#2D2D2D] text-white rounded-3xl p-6 flex flex-col sm:flex-row justify-between items-center gap-4">
-                  <div className="text-center sm:text-left text-left">
-                    <span className="text-[10px] font-bold text-[#A68A64] uppercase tracking-widest block text-left">Gran Total Acumulado Estancia</span>
-                    <span className="text-2xl font-serif font-bold text-[#F9F7F2] mt-1 block text-left">
+                  <div className="text-center sm:text-left">
+                    <span className="text-[10px] font-bold text-[#A68A64] uppercase tracking-widest block">Gran Total Acumulado Estancia</span>
+                    <span className="text-2xl font-serif font-bold text-[#F9F7F2] mt-1 block">
                       ${grandTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
                     </span>
                   </div>
@@ -517,7 +512,6 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
                 </div>
 
                 <div className="bg-[#F9F7F2]/40 border border-[#E8E4D9] rounded-3xl p-6 space-y-6">
-                  {/* Form to add item */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
                     <div className="space-y-2 text-left sm:col-span-2">
                       <label className="text-[10px] font-bold text-[#8C8C8C] uppercase tracking-wider ml-1">Producto / Concepto</label>
@@ -553,7 +547,6 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
                     </div>
                   </div>
 
-                  {/* List of itemized charges */}
                   {extraCharges.length > 0 ? (
                     <div className="space-y-2 border-t border-[#E8E4D9]/60 pt-4 text-left">
                       <p className="text-[10px] font-bold text-[#8C8C8C] uppercase tracking-wider ml-1 mb-2">Desglose de Extras</p>
@@ -580,14 +573,12 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
                         ))}
                       </div>
 
-                      {/* Sum / Total */}
                       <div className="flex justify-between items-center bg-[#A68A64]/5 border border-[#A68A64]/20 rounded-2xl p-4 mt-4">
                         <div>
                           <span className="text-[9px] font-bold text-[#8C8C8C] uppercase tracking-wider block">Suma de Cargos Extras</span>
                           <span className="text-base font-bold text-[#A68A64] mt-0.5 block">${totalExtraAmount.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</span>
                         </div>
                         
-                        {/* Paid Toggle Checkbox */}
                         <label className="flex items-center gap-2.5 cursor-pointer select-none bg-white border border-[#E8E4D9] py-2.5 px-4 rounded-xl shadow-sm">
                           <input
                             type="checkbox"

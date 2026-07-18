@@ -1,283 +1,203 @@
 "use client";
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { BedDouble, TrendingUp, Search, Plus, ChevronRight } from 'lucide-react';
-import { API_ENDPOINTS, apiFetch } from '../lib/api';
-import GuestRegistrationModal from '../components/dashboard/GuestRegistrationModal';
-import RoomDetailPanel from '../components/dashboard/RoomDetailPanel';
-import CheckoutModal from '../components/dashboard/CheckoutModal';
-import { SkeletonCard, SkeletonStat } from '../components/Skeleton';
+import React, { useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { BedDouble, CalendarCheck, Users, DollarSign, Loader2, Sparkles, Plus } from 'lucide-react';
+import { apiFetch, API } from '@/lib/api';
+import type { Room, Reservation } from '@/types';
+import RoomDetailPanel from '@/components/dashboard/RoomDetailPanel';
+import GuestRegistrationModal from '@/components/dashboard/GuestRegistrationModal';
+import CheckoutModal from '@/components/dashboard/CheckoutModal';
 
-export default function Overview() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [rooms, setRooms] = useState<any[]>([]);
-  const [reservations, setReservations] = useState<any[]>([]);
+export default function DashboardPage() {
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRoom, setSelectedRoom] = useState<any>(null);
+  
+  // Modals state
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  
+  const [showCheckIn, setShowCheckIn] = useState(false);
+  const [checkInRoom, setCheckInRoom] = useState<Room | null>(null);
 
-  // Checkout modal state
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [checkoutRoomId, setCheckoutRoomId] = useState('');
-  const [checkoutRoomName, setCheckoutRoomName] = useState('');
-  const [checkoutReservation, setCheckoutReservation] = useState<any>(null);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [checkoutRoom, setCheckoutRoom] = useState<Room | null>(null);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const [roomsData, resData] = await Promise.all([
-          apiFetch<any[]>(API_ENDPOINTS.rooms),
-          apiFetch<any[]>(API_ENDPOINTS.reservations)
-        ]);
-        setRooms(Array.isArray(roomsData) ? roomsData : []);
-        setReservations(Array.isArray(resData) ? resData : []);
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-      }
+  const fetchData = useCallback(async () => {
+    try {
+      const [roomsData, resData] = await Promise.all([
+        apiFetch<Room[]>(API.rooms),
+        apiFetch<Reservation[]>(API.reservations),
+      ]);
+      setRooms(Array.isArray(roomsData) ? roomsData : []);
+      setReservations(Array.isArray(resData) ? resData : []);
+    } catch (err) {
+      console.error('Dashboard fetch error:', err);
+    } finally {
+      setLoading(false);
     }
-    fetchData();
   }, []);
 
-  const getCurrentReservationForRoom = (roomId: string) => {
-    if (!Array.isArray(reservations)) return null;
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    return reservations.find(r => {
-      if (r.roomId !== roomId) return false;
-      const [checkIn, checkOut] = (r.dates || '').split(' - ');
-      return todayStr >= checkIn && todayStr <= checkOut;
-    }) || null;
-  };
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  const getUpcomingReservationsForRoom = (roomId: string) => {
-    if (!Array.isArray(reservations)) return [];
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    return reservations.filter(r => {
-      if (r.roomId !== roomId) return false;
-      const [checkIn] = (r.dates || '').split(' - ');
-      return checkIn > todayStr;
-    }).sort((a, b) => {
-      const [checkInA] = (a.dates || '').split(' - ');
-      const [checkInB] = (b.dates || '').split(' - ');
-      return checkInA.localeCompare(checkInB);
-    });
-  };
-
-  const getGuestForRoom = (room: any) => {
-    if (room.status !== 'occupied') return '-';
-    const res = getCurrentReservationForRoom(room.id);
-    return res ? res.guestName : '-';
-  };
-
-  const filteredRooms = rooms.filter(room =>
-    room.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    room.id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const occupiedCount = Array.isArray(rooms) ? rooms.filter(r => r.status === 'occupied').length : 0;
-  const occupancyRate = rooms.length > 0 ? Math.round((occupiedCount / rooms.length) * 100) : 0;
-  const todayCheckins = reservations.filter(r => {
-    if (!r.dates) return false;
-    const [ci] = r.dates.split(' - ');
-    const today = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    return ci === todayStr;
-  }).length;
-
-  const getOccupancyTrend = (rate: number) => rate >= 80 ? 'Cap. Alta' : rate >= 40 ? 'Estable' : 'Baja';
-  const getOutTrend = (count: number) => count > 0 ? 'Pendiente' : 'Al día';
-  const getInTrend = (count: number) => count > 0 ? 'Frecuente' : 'Normal';
+  const today = new Date().toISOString().split('T')[0];
+  const todayReservations = reservations.filter(r => {
+    const [checkIn, checkOut] = (r.dates || '').split(' - ');
+    return today >= checkIn && today <= checkOut;
+  });
+  const occupiedCount = rooms.filter(r => r.status === 'occupied').length;
+  const occupancy = rooms.length > 0 ? Math.round((occupiedCount / rooms.length) * 100) : 0;
+  const todayRevenue = todayReservations.reduce((sum, r) => sum + (r.total_price || 0), 0);
 
   const stats = [
-    { label: 'Check-ins Hoy', value: todayCheckins.toString(), color: 'bg-[#A68A64]', trend: getInTrend(todayCheckins) },
-    { label: 'Ocupación Total', value: `${occupancyRate}%`, color: 'bg-[#8E9B8E]', trend: getOccupancyTrend(occupancyRate) },
-    { label: 'Salidas Pendientes', value: occupiedCount.toString(), color: 'bg-[#C2A88D]', trend: getOutTrend(occupiedCount) },
+    { label: 'Habitaciones Ocupadas', value: `${occupiedCount}/${rooms.length}`, icon: <BedDouble size={20} />, color: 'bg-[#A68A64]' },
+    { label: 'Reservaciones Hoy', value: todayReservations.length, icon: <CalendarCheck size={20} />, color: 'bg-[#8E9B8E]' },
+    { label: 'Huéspedes Activos', value: todayReservations.length, icon: <Users size={20} />, color: 'bg-[#C2A88D]' },
+    { label: 'Revenue Hoy', value: `$${todayRevenue.toLocaleString('es-MX')}`, icon: <DollarSign size={20} />, color: 'bg-[#6B8F71]' },
   ];
 
-  const handleQuickCheckout = (roomId: string) => {
-    const activeRes = getCurrentReservationForRoom(roomId);
-    const roomObj = rooms.find(r => r.id === roomId);
-    setCheckoutRoomId(roomId);
-    setCheckoutRoomName(roomObj ? roomObj.name : `Suite ${roomId}`);
-    setCheckoutReservation(activeRes);
-    setIsCheckoutOpen(true);
+  const getStatusStyle = (status: string) => {
+    switch (status) {
+      case 'occupied':    return { bg: 'bg-[#A68A64]/10 border-[#A68A64]/30', dot: 'bg-[#A68A64]', text: 'Ocupada' };
+      case 'maintenance': return { bg: 'bg-amber-500/10 border-amber-500/30', dot: 'bg-amber-500', text: 'Mantenimiento' };
+      default:            return { bg: 'bg-[#8E9B8E]/10 border-[#8E9B8E]/30', dot: 'bg-[#8E9B8E]', text: 'Disponible' };
+    }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-[60vh]">
+        <Loader2 size={32} className="text-[#A68A64] animate-spin" />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-10 text-left">
-      {/* Daily pressure banner */}
-      <div className="bg-[#A68A64] rounded-[40px] p-10 text-white relative overflow-hidden shadow-2xl shadow-[#A68A64]/20 group">
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-[0.2em]">Temporada Alta</span>
-            <span className="w-2 h-2 rounded-full bg-white animate-ping" />
-          </div>
-          <h2 className="text-4xl font-heading font-medium mb-2">Estado del Lobby</h2>
-          <p className="text-white/80 max-w-md text-sm leading-relaxed">
-            Hay <span className="font-bold text-white">{todayCheckins} check-ins</span> programados para hoy.
-            El equipo de limpieza ha reportado <span className="font-bold text-white">{rooms.filter(r => r.status === 'available').length} suites</span> listas para entrega.
-          </p>
-        </div>
-        <div className="absolute right-[-20px] bottom-[-20px] opacity-10 group-hover:scale-110 transition-transform duration-700">
-          <BedDouble size={240} />
-        </div>
-      </div>
-
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-3xl font-heading font-medium text-[#2D2D2D]">Panel de Control</h1>
-          <p className="text-sm text-[#8C8C8C] mt-1">Gestión operativa y estado del inventario</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="relative hidden xl:block">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8C8C8C]" size={16} />
-            <input
-              type="text"
-              placeholder="Buscar habitación..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-white border border-[#E8E4D9] rounded-xl py-3 pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#A68A64]/20 transition-all w-64 text-[#2D2D2D]"
-            />
-          </div>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-[#A68A64] text-white px-6 py-3 rounded-xl font-semibold text-sm flex items-center gap-2 hover:bg-[#8E7554] shadow-sm transition-all active:scale-95"
+    <div className="flex flex-col gap-8 text-left">
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map(stat => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-[24px] border border-[#E8E4D9] p-5 flex items-center gap-4 shadow-sm"
           >
-            <Plus size={18} /> Registrar Ingreso
-          </button>
+            <div className={`w-12 h-12 rounded-2xl ${stat.color} flex items-center justify-center text-white shadow-md`}>
+              {stat.icon}
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-[#8C8C8C] uppercase tracking-widest">{stat.label}</p>
+              <p className="text-xl font-bold text-[#2D2D2D] mt-0.5">{stat.value}</p>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Occupancy Bar */}
+      <div className="bg-white rounded-[24px] border border-[#E8E4D9] p-6 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[10px] font-bold text-[#8C8C8C] uppercase tracking-widest">Ocupación General</p>
+          <span className="text-sm font-bold text-[#A68A64]">{occupancy}%</span>
+        </div>
+        <div className="w-full h-3 bg-[#F9F7F2] rounded-full overflow-hidden">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${occupancy}%` }}
+            transition={{ duration: 1, ease: 'easeOut' }}
+            className="h-full bg-gradient-to-r from-[#A68A64] to-[#C2A88D] rounded-full"
+          />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {loading ? (
-          <><SkeletonStat /><SkeletonStat /><SkeletonStat /></>
-        ) : (
-          stats.map((stat, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className="bg-white p-8 rounded-3xl border border-[#E8E4D9] shadow-sm hover:shadow-md transition-shadow relative overflow-hidden"
-            >
-              <div className="flex justify-between items-start mb-2">
-                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#8C8C8C]">{stat.label}</p>
-                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#F9F7F2] text-[#A68A64] border border-[#E8E4D9]">{stat.trend}</span>
-              </div>
-              <div className="flex items-end justify-between">
-                <span className="text-3xl font-heading font-medium text-[#2D2D2D]">{stat.value}</span>
-                <div className={`w-8 h-8 rounded-lg ${stat.color} flex items-center justify-center text-white shadow-lg`}>
-                  <TrendingUp size={16} />
-                </div>
-              </div>
-            </motion.div>
-          ))
-        )}
-      </div>
-
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[#2D2D2D] flex items-center gap-2">
-            Estado de Suites
-            {!loading && <span className="text-[10px] font-bold bg-[#F2EEE4] text-[#8C8C8C] px-2 py-0.5 rounded-full">{rooms.length} Total</span>}
-          </h2>
+      {/* Rooms Grid */}
+      <div>
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <Sparkles size={18} className="text-[#A68A64]" />
+            <h2 className="text-lg font-semibold text-[#2D2D2D]">Estado de Suites</h2>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-          {loading ? (
-            Array(8).fill(0).map((_, i) => <SkeletonCard key={i} />)
-          ) : (
-            filteredRooms.map((room, i) => (
-              <motion.div
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+          {rooms.map(room => {
+            const st = getStatusStyle(room.status);
+            const todayRes = todayReservations.find(r => r.room_id === room.id);
+            return (
+              <motion.button
                 key={room.id}
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: i * 0.05 }}
-                className="group bg-white p-6 rounded-3xl border border-[#E8E4D9] shadow-sm hover:border-[#A68A64]/50 transition-all flex flex-col justify-between min-h-[220px] cursor-pointer"
                 onClick={() => setSelectedRoom(room)}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className={`text-left p-5 rounded-[24px] border ${st.bg} transition-all shadow-sm hover:shadow-md`}
               >
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      room.status === 'available' ? 'bg-[#8E9B8E]/10 text-[#8E9B8E]' :
-                      room.status === 'occupied' ? 'bg-[#A68A64]/10 text-[#A68A64]' :
-                      'bg-[#C2A88D]/10 text-[#C2A88D]'
-                    }`}>
-                      <BedDouble size={20} />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-[9px] font-bold text-[#8C8C8C] uppercase tracking-widest">{room.id}</p>
-                      <h3 className="font-semibold text-[#2D2D2D] leading-tight">{room.name}</h3>
-                    </div>
-                  </div>
-                  <div className={`px-2 py-1 rounded-md text-[8px] font-bold uppercase tracking-tighter ${
-                    room.status === 'available' ? 'bg-[#8E9B8E]/10 text-[#8E9B8E]' :
-                    room.status === 'occupied' ? 'bg-[#A68A64]/10 text-[#A68A64]' :
-                    'bg-[#C2A88D]/10 text-[#C2A88D]'
-                  }`}>
-                    {room.status === 'available' ? 'Libre' : room.status === 'occupied' ? 'En Uso' : 'Mantenim.'}
-                  </div>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-2xl font-bold text-[#2D2D2D]">{room.id}</span>
+                  <span className={`w-3 h-3 rounded-full ${st.dot} ring-4 ring-white`} />
                 </div>
-
-                <div className="mt-6 pt-4 border-t border-[#F9F7F2]">
-                  <div className="flex justify-between items-center">
-                    <div className="flex flex-col text-left">
-                      <span className="text-[9px] font-bold text-[#8C8C8C] uppercase tracking-[0.1em]">Huésped Actual</span>
-                      <span className="text-sm font-medium text-[#4A4A4A] truncate max-w-[100px]">{getGuestForRoom(room)}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      {room.status === 'occupied' && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleQuickCheckout(room.id); }}
-                          className="px-3 py-2 bg-[#F9F7F2] hover:bg-[#A68A64] text-[#A68A64] hover:text-white text-[9px] font-bold uppercase tracking-widest rounded-lg transition-all border border-[#E8E4D9]"
-                        >
-                          Checkout
-                        </button>
-                      )}
-                      <div className="w-8 h-8 rounded-full bg-[#F9F7F2] flex items-center justify-center text-[#8C8C8C] group-hover:text-[#A68A64] transition-colors border border-[#E8E4D9]">
-                        <ChevronRight size={16} />
-                      </div>
-                    </div>
-                  </div>
+                <p className="text-sm font-semibold text-[#4A4A4A] truncate">{room.name}</p>
+                <p className="text-[10px] text-[#8C8C8C] uppercase tracking-widest font-bold mt-1">{room.room_type}</p>
+                <div className="mt-3 pt-3 border-t border-[#E8E4D9]/50">
+                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: st.dot.replace('bg-', '') }}>
+                    {st.text}
+                  </p>
+                  {todayRes && (
+                    <p className="text-[10px] text-[#A68A64] font-medium mt-1 truncate">
+                      {todayRes.guest_name}
+                    </p>
+                  )}
                 </div>
-              </motion.div>
-            ))
-          )}
+                {room.status === 'available' && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setCheckInRoom(room); setShowCheckIn(true); }}
+                    className="mt-3 w-full py-2 bg-[#8E9B8E] text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#7A8A7A] transition-all flex items-center justify-center gap-1"
+                  >
+                    <Plus size={12} /> Check-In
+                  </button>
+                )}
+              </motion.button>
+            );
+          })}
         </div>
       </div>
 
-      <GuestRegistrationModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
-      <RoomDetailPanel
-        isOpen={!!selectedRoom}
-        onClose={() => setSelectedRoom(null)}
-        room={selectedRoom}
-        currentReservation={selectedRoom ? getCurrentReservationForRoom(selectedRoom.id) : null}
-        upcomingReservations={selectedRoom ? getUpcomingReservationsForRoom(selectedRoom.id) : []}
-        onCheckout={handleQuickCheckout}
-      />
-      <CheckoutModal
-        isOpen={isCheckoutOpen}
-        onClose={() => setIsCheckoutOpen(false)}
-        roomId={checkoutRoomId}
-        roomName={checkoutRoomName}
-        currentReservation={checkoutReservation}
-        onSuccess={async () => {
-          // Refresh rooms and reservations lists on successful checkout
-          try {
-            const [roomsData, resData] = await Promise.all([
-              apiFetch<any[]>(API_ENDPOINTS.rooms),
-              apiFetch<any[]>(API_ENDPOINTS.reservations)
-            ]);
-            setRooms(Array.isArray(roomsData) ? roomsData : []);
-            setReservations(Array.isArray(resData) ? resData : []);
-          } catch (err) {
-            console.error('Error refreshing room data after checkout:', err);
-          }
-        }}
-      />
+      {/* Room Detail Slide Panel */}
+      <AnimatePresence>
+        {selectedRoom && (
+          <RoomDetailPanel
+            isOpen={!!selectedRoom}
+            room={selectedRoom}
+            currentReservation={reservations.find(r => r.room_id === selectedRoom.id && today >= (r.dates?.split(' - ')[0] ?? '') && today <= (r.dates?.split(' - ')[1] ?? '')) || null}
+            upcomingReservations={reservations.filter(r => r.room_id === selectedRoom.id && (r.dates?.split(' - ')[0] ?? '') > today)}
+            onClose={() => setSelectedRoom(null)}
+            onCheckout={() => {
+              setCheckoutRoom(selectedRoom);
+              setShowCheckout(true);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Check-in Modal */}
+      {showCheckIn && checkInRoom && (
+        <GuestRegistrationModal
+          isOpen={showCheckIn}
+          onClose={() => { setShowCheckIn(false); setCheckInRoom(null); }}
+          room={checkInRoom}
+          onSuccess={fetchData}
+        />
+      )}
+
+      {/* Checkout Modal */}
+      {showCheckout && checkoutRoom && (
+        <CheckoutModal
+          isOpen={showCheckout}
+          onClose={() => { setShowCheckout(false); setCheckoutRoom(null); }}
+          roomId={checkoutRoom.id}
+          roomName={checkoutRoom.name}
+          currentReservation={reservations.find(r => r.room_id === checkoutRoom.id) || null}
+          onSuccess={fetchData}
+        />
+      )}
     </div>
   );
 }

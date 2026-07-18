@@ -2,36 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Coffee, Plus, Minus, Trash2, Search, Sparkles, Clock, 
+  Coffee, Plus, Minus, Trash2, Search, Clock, 
   CreditCard, Wallet, FileText, CheckCircle2, Tag, 
   ShoppingBag, UtensilsCrossed, Wine, Beer, X, User, Pencil, AlertTriangle
 } from 'lucide-react';
-import { apiFetch, API_ENDPOINTS } from '../../lib/api';
-import { toast } from '../../components/Toast';
-
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  price: number;
-  stock?: number;
-  image?: string;
-  createdAt?: string;
-}
-
-interface CartItem {
-  product: Product;
-  quantity: number;
-}
-
-interface PosSale {
-  id: string;
-  itemsJson: string;
-  total: number;
-  paymentMethod: string;
-  notes?: string;
-  createdAt: string;
-}
+import { apiFetch, API } from '@/lib/api';
+import { toast } from '@/components/Toast';
+import type { Product, CartItem, PosSale, Room, Reservation } from '@/types';
 
 export default function PosPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -67,8 +44,8 @@ export default function PosPage() {
   const [deletingSaleId, setDeletingSaleId] = useState<string | null>(null);
   const [deletingLoading, setDeletingLoading] = useState(false);
 
-  const [rooms, setRooms] = useState<any[]>([]);
-  const [reservations, setReservations] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
 
   const categories = ['Todas', 'Desayunos', 'Café', 'Cerveza', 'Vinos', 'Copas', 'Digestivos', 'Extras'];
 
@@ -81,8 +58,8 @@ export default function PosPage() {
   const loadRoomsAndReservations = async () => {
     try {
       const [roomsData, resData] = await Promise.all([
-        apiFetch<any[]>(API_ENDPOINTS.rooms),
-        apiFetch<any[]>(API_ENDPOINTS.reservations)
+        apiFetch<Room[]>(API.rooms),
+        apiFetch<Reservation[]>(API.reservations)
       ]);
       setRooms(Array.isArray(roomsData) ? roomsData : []);
       setReservations(Array.isArray(resData) ? resData : []);
@@ -99,14 +76,14 @@ export default function PosPage() {
       .filter(room => room.status === 'occupied')
       .map(room => {
         const res = reservations.find(r => {
-          if (r.roomId !== room.id) return false;
+          if (r.room_id !== room.id) return false;
           const [checkIn, checkOut] = (r.dates || '').split(' - ');
           return todayStr >= checkIn && todayStr <= checkOut;
         });
         return {
           id: room.id,
           name: room.name,
-          guestName: res ? res.guestName : 'Huésped Activo'
+          guestName: res ? res.guest_name : 'Huésped Activo'
         };
       });
   };
@@ -114,7 +91,7 @@ export default function PosPage() {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const data = await apiFetch<Product[]>(API_ENDPOINTS.products);
+      const data = await apiFetch<Product[]>(API.products);
       setProducts(data || []);
     } catch (err) {
       toast.error('Error al cargar productos del menú');
@@ -125,7 +102,7 @@ export default function PosPage() {
 
   const loadSalesHistory = async () => {
     try {
-      const data = await apiFetch<PosSale[]>(API_ENDPOINTS.posSales);
+      const data = await apiFetch<PosSale[]>(API.posSales);
       setSalesHistory(data || []);
     } catch (err) {
       console.error('Error al cargar historial de ventas', err);
@@ -169,7 +146,7 @@ export default function PosPage() {
     }
     
     try {
-      const itemsJson = JSON.stringify(cart.map(item => ({
+      const items_json = JSON.stringify(cart.map(item => ({
         id: item.product.id,
         name: item.product.name,
         price: item.product.price,
@@ -178,12 +155,12 @@ export default function PosPage() {
 
       const fullNotes = paymentMethod === 'Habitación' ? `Cargo a Habitación / Huesped: ${notes}` : notes;
 
-      const newSale = await apiFetch<PosSale>(API_ENDPOINTS.posSales, {
+      const newSale = await apiFetch<PosSale>(API.posSales, {
         method: 'POST',
         body: JSON.stringify({
-          itemsJson,
+          items_json,
           total: Number(total.toFixed(2)),
-          paymentMethod,
+          payment_method: paymentMethod,
           notes: fullNotes || "Consumo general en Restaurante/Bar"
         })
       });
@@ -215,7 +192,7 @@ export default function PosPage() {
 
     try {
       setSubmittingProduct(true);
-      await apiFetch<Product>(API_ENDPOINTS.products, {
+      await apiFetch<Product>(API.products, {
         method: 'POST',
         body: JSON.stringify({
           name: newProduct.name,
@@ -241,7 +218,7 @@ export default function PosPage() {
 
   const executeDeleteProduct = async (id: string) => {
     try {
-      await apiFetch(`${API_ENDPOINTS.products}`, {
+      await apiFetch(API.products, {
         method: 'DELETE',
         body: JSON.stringify({ id })
       });
@@ -257,7 +234,7 @@ export default function PosPage() {
     if (!deletingSaleId) return;
     setDeletingLoading(true);
     try {
-      await apiFetch(API_ENDPOINTS.posSales, {
+      await apiFetch(API.posSales, {
         method: 'DELETE',
         body: JSON.stringify({ id: deletingSaleId })
       });
@@ -273,10 +250,10 @@ export default function PosPage() {
 
   const openEditSale = (sale: PosSale) => {
     let items: { id: string; name: string; price: number; quantity: number }[] = [];
-    try { items = JSON.parse(sale.itemsJson); } catch (e) {}
+    try { items = JSON.parse(sale.items_json); } catch (e) {}
     setEditingSale(sale);
     setEditItems(items);
-    setEditPaymentMethod(sale.paymentMethod as 'Efectivo' | 'Tarjeta' | 'Habitación');
+    setEditPaymentMethod(sale.payment_method as 'Efectivo' | 'Tarjeta' | 'Habitación');
     setEditNotes(sale.notes || '');
   };
 
@@ -298,13 +275,13 @@ export default function PosPage() {
       const newTotal = editItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
         + (editPaymentMethod === 'Tarjeta' ? editItems.reduce((sum, item) => sum + item.price * item.quantity, 0) * 0.05 : 0);
       
-      const updated = await apiFetch<PosSale>(API_ENDPOINTS.posSales, {
+      const updated = await apiFetch<PosSale>(API.posSales, {
         method: 'PATCH',
         body: JSON.stringify({
           id: editingSale.id,
-          itemsJson: JSON.stringify(editItems),
+          items_json: JSON.stringify(editItems),
           total: Number(newTotal.toFixed(2)),
-          paymentMethod: editPaymentMethod,
+          payment_method: editPaymentMethod,
           notes: editNotes || null
         })
       });
@@ -656,7 +633,7 @@ export default function PosPage() {
               // Group sales by day
               const groups: { [key: string]: PosSale[] } = {};
               salesHistory.forEach(sale => {
-                const d = new Date(sale.createdAt);
+                const d = new Date(sale.created_at);
                 const dateKey = d.toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                 if (!groups[dateKey]) groups[dateKey] = [];
                 groups[dateKey].push(sale);
@@ -681,17 +658,17 @@ export default function PosPage() {
                         <div className="space-y-4">
                           {daySales.map(sale => {
                             let items: any[] = [];
-                            try { items = JSON.parse(sale.itemsJson); } catch (e) {}
+                            try { items = JSON.parse(sale.items_json); } catch (e) {}
 
                             return (
                               <div key={sale.id} className="bg-white p-5 rounded-2xl border border-[#E8E4D9] flex flex-col md:flex-row justify-between gap-4 hover:border-[#A68A64] transition-all group">
                                 <div className="space-y-2.5 flex-grow">
                                   <div className="flex items-center gap-3">
                                     <span className="font-bold bg-[#2D2D2D] text-white px-2.5 py-1 rounded-lg uppercase text-[10px] tracking-widest">
-                                      {sale.paymentMethod}
+                                      {sale.payment_method}
                                     </span>
                                     <span className="text-xs text-[#8C8C8C] font-medium">
-                                      {new Date(sale.createdAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })} • Folio #{sale.id.substring(0, 6).toUpperCase()}
+                                      {new Date(sale.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })} • Folio #{sale.id.substring(0, 6).toUpperCase()}
                                     </span>
                                   </div>
                                   
@@ -852,7 +829,7 @@ export default function PosPage() {
               </div>
 
               <h2 className="font-serif text-3xl font-bold text-[#1C1C1C] mb-1">¡Cobro Exitoso!</h2>
-              <p className="text-xs text-[#8C8C8C] mb-6">Folio #{lastCompletedSale.id.substring(0, 8).toUpperCase()} • {new Date(lastCompletedSale.createdAt).toLocaleTimeString()}</p>
+              <p className="text-xs text-[#8C8C8C] mb-6">Folio #{lastCompletedSale.id.substring(0, 8).toUpperCase()} • {new Date(lastCompletedSale.created_at).toLocaleTimeString()}</p>
 
               <div className="bg-[#F9F7F2] p-5 rounded-2xl border border-[#E8E4D9] mb-6 text-left space-y-3">
                 <div className="flex justify-between text-xs font-bold text-[#8C8C8C] border-b border-[#E8E4D9] pb-2 uppercase tracking-wider">
@@ -875,7 +852,7 @@ export default function PosPage() {
                 )}
 
                 <div className="flex justify-between text-base font-serif font-bold text-[#1C1C1C] border-t border-[#E8E4D9] pt-3 mt-3">
-                  <span>Total Pagado ({lastCompletedSale.paymentMethod})</span>
+                  <span>Total Pagado ({lastCompletedSale.payment_method})</span>
                   <span className="text-[#A68A64]">${lastCompletedSale.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</span>
                 </div>
               </div>
@@ -961,7 +938,7 @@ export default function PosPage() {
                   Folio #{editingSale.id.substring(0, 8).toUpperCase()}
                 </h2>
                 <p className="text-xs text-[#8C8C8C] mt-1">
-                  {new Date(editingSale.createdAt).toLocaleString('es-MX')}
+                  {new Date(editingSale.created_at).toLocaleString('es-MX')}
                 </p>
               </div>
 
@@ -1147,5 +1124,3 @@ export default function PosPage() {
     </div>
   );
 }
-
-// Trigger commit update

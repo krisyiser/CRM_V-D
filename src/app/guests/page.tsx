@@ -2,13 +2,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, MoreHorizontal, User, Search, X, CalendarCheck, BedDouble, Phone, Trash2, Grid, List, Copy, Check, Printer } from 'lucide-react';
-import { API_ENDPOINTS, apiFetch } from '../../lib/api';
-import { SkeletonCard } from '../../components/Skeleton';
-import StayReportModal from '../../components/dashboard/StayReportModal';
+import { API, apiFetch } from '@/lib/api';
+import type { Guest, Reservation, RoomCharge } from '@/types';
+import { SkeletonCard } from '@/components/Skeleton';
+import StayReportModal from '@/components/dashboard/StayReportModal';
 
-function GuestDetailPanel({ guest, reservations, onClose }: { guest: any; reservations: any[]; onClose: () => void }) {
+function GuestDetailPanel({ guest, reservations, onClose }: { guest: Guest | null; reservations: Reservation[]; onClose: () => void }) {
   if (!guest) return null;
-  const guestReservations = reservations.filter(r => r.guestId === guest.id || r.guestName === guest.name);
+  const guestReservations = reservations.filter(r => r.guest_id === guest.id || r.guest_name === guest.name);
   const [showConfirmDelete, setShowConfirmDelete] = React.useState(false);
 
   return (
@@ -56,10 +57,14 @@ function GuestDetailPanel({ guest, reservations, onClose }: { guest: any; reserv
                     <span className="text-sm text-[#4A4A4A]">{guest.email || '—'}</span>
                   </div>
                   <div className="flex items-center gap-3 p-4 bg-[#F9F7F2] rounded-2xl border border-[#E8E4D9]">
+                    <Phone size={16} className="text-[#A68A64]" />
+                    <span className="text-sm text-[#4A4A4A]">{guest.phone || '—'}</span>
+                  </div>
+                  <div className="flex items-center gap-3 p-4 bg-[#F9F7F2] rounded-2xl border border-[#E8E4D9]">
                     <User size={16} className="text-[#A68A64]" />
                     <div>
                       <span className="text-[9px] font-bold text-[#8C8C8C] uppercase tracking-widest block">Registrado el</span>
-                      <span className="text-sm text-[#4A4A4A]">{new Date(guest.createdAt || guest.created_at || Date.now()).toLocaleDateString('es-MX')}</span>
+                      <span className="text-sm text-[#4A4A4A]">{new Date(guest.created_at || Date.now()).toLocaleDateString('es-MX')}</span>
                     </div>
                   </div>
                 </div>
@@ -78,10 +83,10 @@ function GuestDetailPanel({ guest, reservations, onClose }: { guest: any; reserv
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <BedDouble size={14} className="text-[#A68A64]" />
-                          <span className="text-sm font-semibold text-[#2D2D2D]">Suite {res.roomId}</span>
+                          <span className="text-sm font-semibold text-[#2D2D2D]">Suite {res.room_id}</span>
                         </div>
-                        <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${res.paymentStatus === 'paid' ? 'bg-[#8E9B8E]/10 text-[#8E9B8E]' : 'bg-[#C2A88D]/10 text-[#C2A88D]'}`}>
-                          {res.paymentStatus === 'paid' ? 'Pagado' : 'Pendiente'}
+                        <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${res.payment_status === 'paid' ? 'bg-[#8E9B8E]/10 text-[#8E9B8E]' : 'bg-[#C2A88D]/10 text-[#C2A88D]'}`}>
+                          {res.payment_status === 'paid' ? 'Pagado' : 'Pendiente'}
                         </span>
                       </div>
                       <p className="text-xs text-[#8C8C8C] italic">{res.dates}</p>
@@ -92,7 +97,6 @@ function GuestDetailPanel({ guest, reservations, onClose }: { guest: any; reserv
               </div>
             </div>
             
-            {/* Custom confirmation overlay */}
             {showConfirmDelete && (
               <div className="absolute inset-0 z-50 bg-[#2D2D2D]/95 backdrop-blur-md flex flex-col justify-center p-8 text-center animate-in fade-in duration-300">
                 <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-6 text-red-500">
@@ -100,20 +104,20 @@ function GuestDetailPanel({ guest, reservations, onClose }: { guest: any; reserv
                 </div>
                 <h3 className="text-xl font-heading font-semibold text-white mb-2">¿Eliminar Huésped?</h3>
                 <p className="text-xs text-[#8C8C8C] leading-relaxed max-w-[280px] mx-auto mb-8">
-                  Esta acción eliminará de forma permanente al huésped y todos sus datos del registro local de manera irreversible.
+                  Esta acción eliminará de forma permanente al huésped y todos sus datos del registro de manera irreversible.
                 </p>
                 <div className="space-y-3">
                   <button
                     onClick={async () => {
                       setShowConfirmDelete(false);
                       try {
-                        await apiFetch(API_ENDPOINTS.guests, {
+                        await apiFetch(API.guests, {
                           method: 'DELETE',
                           body: JSON.stringify({ id: guest.id })
                         });
                         window.location.reload();
                       } catch (e) {
-                        const { toast } = await import('../../components/Toast');
+                        const { toast } = await import('@/components/Toast');
                         toast.error('Error al eliminar');
                       }
                     }}
@@ -138,13 +142,13 @@ function GuestDetailPanel({ guest, reservations, onClose }: { guest: any; reserv
 }
 
 export default function Guests() {
-  const [guests, setGuests] = useState<any[]>([]);
-  const [reservations, setReservations] = useState<any[]>([]);
-  const [roomCharges, setRoomCharges] = useState<any[]>([]);
+  const [guests, setGuests] = useState<Guest[]>([]);
+  const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [roomCharges, setRoomCharges] = useState<RoomCharge[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedGuest, setSelectedGuest] = useState<any>(null);
-  const [selectedCharge, setSelectedCharge] = useState<any>(null);
+  const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
+  const [selectedCharge, setSelectedCharge] = useState<RoomCharge | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [contactPopoverId, setContactPopoverId] = useState<string | null>(null);
@@ -154,9 +158,9 @@ export default function Guests() {
     async function fetchData() {
       try {
         const [guestsData, resData, chargesData] = await Promise.all([
-          apiFetch<any[]>(API_ENDPOINTS.guests),
-          apiFetch<any[]>(API_ENDPOINTS.reservations),
-          apiFetch<any[]>(API_ENDPOINTS.roomCharges),
+          apiFetch<Guest[]>(API.guests),
+          apiFetch<Reservation[]>(API.reservations),
+          apiFetch<RoomCharge[]>(API.roomCharges),
         ]);
         setGuests(Array.isArray(guestsData) ? guestsData : []);
         setReservations(Array.isArray(resData) ? resData : []);
@@ -171,7 +175,7 @@ export default function Guests() {
   }, []);
 
   const getGuestCharges = (guestName: string) => {
-    return roomCharges.filter(c => c.guestName === guestName);
+    return roomCharges.filter(c => c.guest_name === guestName);
   };
 
   const copyToClipboard = (text: string, id: string) => {
@@ -265,7 +269,7 @@ export default function Guests() {
                     <div className="flex flex-col">
                       <span className="text-[9px] font-bold text-[#8C8C8C] uppercase tracking-widest">Registrado</span>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-[#4A4A4A]">{new Date(guest.createdAt || guest.created_at || Date.now()).toLocaleDateString('es-MX')}</span>
+                        <span className="text-xs font-medium text-[#4A4A4A]">{new Date(guest.created_at || Date.now()).toLocaleDateString('es-MX')}</span>
                         {guest.origin === 'Sitio Web' && (
                           <span className="text-[8px] bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded-md font-bold uppercase tracking-widest border border-emerald-500/20">
                             Vía Web
@@ -315,39 +319,39 @@ export default function Guests() {
                                 <X size={12} />
                               </button>
                             </div>
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center gap-2">
-                              <span className="text-[#6B6B6B] truncate font-medium" title={guest.email}>{guest.email || 'Sin correo'}</span>
-                              {guest.email && (
-                                <button 
-                                  onClick={() => copyToClipboard(guest.email, `${guest.id}-email`)}
-                                  className="text-[#8C8C8C] hover:text-[#A68A64] shrink-0"
-                                  title="Copiar Correo"
-                                >
-                                  {copiedId === `${guest.id}-email` ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                                </button>
-                              )}
-                            </div>
-                            <div className="flex justify-between items-center gap-2 border-t border-[#F2EEE4]/50 pt-2">
-                              <span className="text-[#6B6B6B] font-medium">{guest.phone || 'Sin teléfono'}</span>
-                              {guest.phone && (
-                                <button 
-                                  onClick={() => copyToClipboard(guest.phone, `${guest.id}-phone`)}
-                                  className="text-[#8C8C8C] hover:text-[#A68A64] shrink-0"
-                                  title="Copiar Teléfono"
-                                >
-                                  {copiedId === `${guest.id}-phone` ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                                </button>
-                              )}
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-center gap-2">
+                                <span className="text-[#6B6B6B] truncate font-medium" title={guest.email || ''}>{guest.email || 'Sin correo'}</span>
+                                {guest.email && (
+                                  <button 
+                                    onClick={() => copyToClipboard(guest.email || '', `${guest.id}-email`)}
+                                    className="text-[#8C8C8C] hover:text-[#A68A64] shrink-0"
+                                    title="Copiar Correo"
+                                  >
+                                    {copiedId === `${guest.id}-email` ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                                  </button>
+                                )}
+                              </div>
+                              <div className="flex justify-between items-center gap-2 border-t border-[#F2EEE4]/50 pt-2">
+                                <span className="text-[#6B6B6B] font-medium">{guest.phone || 'Sin teléfono'}</span>
+                                {guest.phone && (
+                                  <button 
+                                    onClick={() => copyToClipboard(guest.phone || '', `${guest.id}-phone`)}
+                                    className="text-[#8C8C8C] hover:text-[#A68A64] shrink-0"
+                                    title="Copiar Teléfono"
+                                  >
+                                    {copiedId === `${guest.id}-phone` ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
+              </motion.div>
             ))
           )}
         </div>
@@ -398,7 +402,7 @@ export default function Guests() {
                       <td className="py-4 px-6 text-[#6B6B6B] font-medium">{guest.email || '—'}</td>
                       <td className="py-4 px-6 text-[#6B6B6B] font-medium">{guest.phone || '—'}</td>
                       <td className="py-4 px-6 text-[#6B6B6B] font-medium">
-                        {new Date(guest.createdAt || guest.created_at || Date.now()).toLocaleDateString('es-MX')}
+                        {new Date(guest.created_at || Date.now()).toLocaleDateString('es-MX')}
                       </td>
                       <td className="py-4 px-6 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="flex justify-end gap-2">
@@ -461,7 +465,7 @@ export default function Guests() {
           setIsReportOpen(false);
           setSelectedCharge(null);
         }}
-        guestName={selectedCharge ? selectedCharge.guestName : ''}
+        guestName={selectedCharge ? selectedCharge.guest_name : ''}
         chargeRecord={selectedCharge}
       />
     </div>

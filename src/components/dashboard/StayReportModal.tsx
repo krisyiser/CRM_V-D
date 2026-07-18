@@ -1,13 +1,14 @@
 "use client";
 import React, { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Printer, Receipt, Calendar, User, BedDouble, Coffee, ShieldCheck, CreditCard } from 'lucide-react';
+import { X, Printer, Receipt } from 'lucide-react';
+import type { RoomCharge } from '@/types';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   guestName: string;
-  chargeRecord: any; // The record from room_charges
+  chargeRecord: RoomCharge | null;
 }
 
 export default function StayReportModal({ isOpen, onClose, guestName, chargeRecord }: Props) {
@@ -15,7 +16,6 @@ export default function StayReportModal({ isOpen, onClose, guestName, chargeReco
 
   if (!isOpen || !chargeRecord) return null;
 
-  // Parse itemsJson
   let stay = {
     checkIn: '',
     checkOut: '',
@@ -31,26 +31,23 @@ export default function StayReportModal({ isOpen, onClose, guestName, chargeReco
   };
 
   try {
-    if (typeof chargeRecord.itemsJson === 'string') {
-      stay = JSON.parse(chargeRecord.itemsJson);
-    } else if (chargeRecord.itemsJson) {
-      stay = chargeRecord.itemsJson;
+    if (typeof chargeRecord.items_json === 'string') {
+      stay = JSON.parse(chargeRecord.items_json);
+    } else if (chargeRecord.items_json) {
+      stay = chargeRecord.items_json as any;
     }
   } catch (e) {
     console.error('Error parsing stay report itemsJson:', e);
   }
 
   const handlePrint = () => {
-    // 1. Create a style block dynamically that hides everything except our print target area
     const printStyle = document.createElement('style');
     printStyle.id = 'dynamic-print-style';
     printStyle.innerHTML = `
       @media print {
-        /* Hide all page content */
         body > * {
           display: none !important;
         }
-        /* Show only our dynamic print container */
         #tauri-printable-invoice-container {
           display: block !important;
           position: absolute;
@@ -167,6 +164,7 @@ export default function StayReportModal({ isOpen, onClose, guestName, chargeReco
           margin-top: 25px !important;
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
+          color-adjust: exact;
         }
         .grand-total-label {
           font-size: 10px;
@@ -197,7 +195,6 @@ export default function StayReportModal({ isOpen, onClose, guestName, chargeReco
       }
     `;
     
-    // 2. Clone the printable area to a temporary absolute element in the body so it prints perfectly
     const printContainer = document.createElement('div');
     printContainer.id = 'tauri-printable-invoice-container';
     printContainer.innerHTML = printAreaRef.current?.innerHTML || '';
@@ -205,11 +202,9 @@ export default function StayReportModal({ isOpen, onClose, guestName, chargeReco
     document.body.appendChild(printStyle);
     document.body.appendChild(printContainer);
     
-    // 3. Trigger printing
     setTimeout(() => {
       window.print();
       
-      // 4. Clean up after printing completes
       setTimeout(() => {
         document.getElementById('dynamic-print-style')?.remove();
         document.getElementById('tauri-printable-invoice-container')?.remove();
@@ -220,7 +215,6 @@ export default function StayReportModal({ isOpen, onClose, guestName, chargeReco
   return (
     <AnimatePresence>
       <div className="fixed inset-0 z-[150] overflow-y-auto">
-        {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -229,7 +223,6 @@ export default function StayReportModal({ isOpen, onClose, guestName, chargeReco
           className="fixed inset-0 bg-[#2D2D2D]/60 backdrop-blur-sm"
         />
 
-        {/* Modal Wrapper */}
         <div className="flex min-h-screen items-center justify-center p-4 md:p-6 relative">
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -267,7 +260,7 @@ export default function StayReportModal({ isOpen, onClose, guestName, chargeReco
             </div>
 
             {/* Scrollable Report Body */}
-            <div className="flex-1 overflow-y-auto p-8 custom-scrollbar-light text-left">
+            <div className="flex-grow overflow-y-auto p-8 custom-scrollbar-light text-left">
               {/* PRINT CONTENT START */}
               <div ref={printAreaRef} className="space-y-8">
                 {/* Print Header */}
@@ -279,7 +272,7 @@ export default function StayReportModal({ isOpen, onClose, guestName, chargeReco
                   <div className="invoice-meta text-right">
                     <h3 className="invoice-title text-lg font-bold text-[#2D2D2D]">RESUMEN DE CUENTA</h3>
                     <p className="invoice-date text-xs text-[#8C8C8C] mt-1">
-                      Fecha checkout: {new Date(chargeRecord.createdAt || Date.now()).toLocaleString('es-MX')}
+                      Fecha checkout: {new Date(chargeRecord.created_at || Date.now()).toLocaleString('es-MX')}
                     </p>
                     <span className={`stamp mt-3 inline-block border-2 ${stay.checkoutPaid ? 'border-[#8E9B8E] text-[#8E9B8E]' : 'border-[#C2A88D] text-[#C2A88D]'} text-[10px] font-bold uppercase tracking-wider py-1 px-3 rounded-lg transform -rotate-2`}>
                       {stay.checkoutPaid ? 'Cuenta Liquidada ✓' : 'Pendiente de Pago'}
@@ -299,7 +292,7 @@ export default function StayReportModal({ isOpen, onClose, guestName, chargeReco
                       </div>
                       <div className="info-row flex justify-between">
                         <span className="info-label text-[#8C8C8C]">Habitación Asignada:</span>
-                        <span className="info-value font-bold text-[#2D2D2D]">Suite {chargeRecord.roomId}</span>
+                        <span className="info-value font-bold text-[#2D2D2D]">Suite {chargeRecord.room_id}</span>
                       </div>
                       <div className="info-row flex justify-between">
                         <span className="info-label text-[#8C8C8C]">Periodo de Estancia:</span>
@@ -342,7 +335,7 @@ export default function StayReportModal({ isOpen, onClose, guestName, chargeReco
                     </thead>
                     <tbody className="divide-y divide-[#F2EEE4]">
                       <tr>
-                        <td className="py-3 px-4 text-left font-semibold">Hospedaje - Suite {chargeRecord.roomId}</td>
+                        <td className="py-3 px-4 text-left font-semibold">Hospedaje - Suite {chargeRecord.room_id}</td>
                         <td className="py-3 px-4 text-center">{stay.nights} noche(s)</td>
                         <td className="py-3 px-4 text-right">${stay.roomPrice.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
                         <td className="py-3 px-4 text-right font-bold">${stay.roomTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>

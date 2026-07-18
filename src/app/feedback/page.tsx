@@ -1,13 +1,13 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { API_ENDPOINTS, apiFetch } from '../../lib/api';
+import { API, apiFetch } from '@/lib/api';
+import type { Feedback } from '@/types';
 import { Star, MessageCircle, User, Calendar, Trash2, ShieldCheck, Heart, Award, Sparkles, Building2, Smile, Droplet, Percent, AlertTriangle, X } from 'lucide-react';
-import Skeleton from '../../components/Skeleton';
-import { toast } from '../../components/Toast';
+import { SkeletonCard } from '@/components/Skeleton';
+import { toast } from '@/components/Toast';
 
 // ─── Custom Confirm Dialog ───────────────────────────────────────────────────
-// Replaces window.confirm() which is blocked in Tauri macOS WebView
 interface ConfirmDialogProps {
   isOpen: boolean;
   guestName: string;
@@ -70,14 +70,14 @@ function ConfirmDialog({ isOpen, guestName, onConfirm, onCancel }: ConfirmDialog
 
 // ─── Main Page ───────────────────────────────────────────────────────────────
 export default function FeedbackPage() {
-  const [feedbacks, setFeedbacks] = useState<any[]>([]);
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deletingItem, setDeletingItem] = useState<any | null>(null);
+  const [deletingItem, setDeletingItem] = useState<Feedback | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchFeedback = async () => {
     try {
-      const data = await apiFetch<any[]>(API_ENDPOINTS.feedback);
+      const data = await apiFetch<Feedback[]>(API.feedback);
       if (Array.isArray(data)) setFeedbacks(data);
     } catch (error) {
       console.error("Error fetching feedback:", error);
@@ -98,36 +98,21 @@ export default function FeedbackPage() {
     return 5;
   };
 
-  // Opens the custom confirm dialog — no window.confirm()
-  const requestDelete = (item: any, e: React.MouseEvent) => {
+  const requestDelete = (item: Feedback, e: React.MouseEvent) => {
     e.stopPropagation();
     setDeletingItem(item);
   };
 
-  // Called when user clicks "Sí, eliminar" in the dialog
   const confirmDelete = async () => {
     if (!deletingItem) return;
-    const targetId = deletingItem?.id || deletingItem?.id_ || deletingItem?._id;
-
-    if (!targetId) {
-      toast.error('Error: ID de encuesta no encontrado.');
-      setDeletingItem(null);
-      return;
-    }
+    const targetId = deletingItem.id;
 
     setIsDeleting(true);
     try {
-      // Use window.__TAURI_INTERNALS__ invoke — most reliable in Tauri desktop
-      const tauri = (window as any).__TAURI_INTERNALS__;
-      if (tauri && tauri.invoke) {
-        await tauri.invoke('delete_feedback', { id: targetId });
-      } else {
-        // Fallback: use apiFetch for web/dev mode
-        await apiFetch(API_ENDPOINTS.feedback, {
-          method: 'DELETE',
-          body: JSON.stringify({ id: targetId }),
-        });
-      }
+      await apiFetch(API.feedback, {
+        method: 'DELETE',
+        body: JSON.stringify({ id: targetId }),
+      });
       setFeedbacks(prev => prev.filter(f => f.id !== targetId));
       toast.success('Encuesta eliminada correctamente.');
     } catch (err: any) {
@@ -187,12 +172,10 @@ export default function FeedbackPage() {
     return c.count > 0 ? parseFloat((c.sum / c.count).toFixed(1)) : 5.0;
   };
 
-  const deletingGuestName =
-    deletingItem?.guestName || deletingItem?.guest_name || 'este huésped';
+  const deletingGuestName = deletingItem?.guest_name || 'este huésped';
 
   return (
     <>
-      {/* Custom Confirm Dialog — replaces window.confirm() */}
       <ConfirmDialog
         isOpen={!!deletingItem}
         guestName={deletingGuestName}
@@ -242,7 +225,7 @@ export default function FeedbackPage() {
                 </div>
               </div>
               <p className="text-[11px] text-[#A68A64] font-semibold mt-4 flex items-center gap-1">
-                <Sparkles size={14} /> Alto Nivel de Excelencia
+                <Sparkles size={14} /> Alto Nivel de Experiencia
               </p>
             </div>
 
@@ -300,16 +283,10 @@ export default function FeedbackPage() {
         {/* Feedback Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {loading ? (
-            Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-3xl p-6 border border-[#E8E4D9]">
-                <Skeleton width="40%" height="20px" className="mb-4" />
-                <Skeleton width="100%" height="10px" className="mb-2" />
-                <Skeleton width="80%" height="10px" />
-              </div>
-            ))
+            Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
           ) : feedbacks.length === 0 ? (
             <div className="col-span-full py-20 text-center bg-white rounded-[40px] border border-[#E8E4D9] shadow-sm">
-              <MessageCircle size={48} className="mx-auto text-[#E8E4D9] mb-4 animate-bounce" />
+              <MessageCircle size={48} className="mx-auto text-[#E8E4D9] mb-4" />
               <h3 className="text-lg font-medium text-[#2D2D2D]">Bandeja de Satisfacción Vacía</h3>
               <p className="text-[#8C8C8C] text-sm mt-2">No hay encuestas registradas aún.</p>
             </div>
@@ -343,11 +320,9 @@ export default function FeedbackPage() {
                   suggestionsText = item.comment || '';
                 }
 
-                const cardId = item.id || item.id_ || String(i);
-
                 return (
                   <motion.div
-                    key={cardId}
+                    key={item.id}
                     layout
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -364,11 +339,11 @@ export default function FeedbackPage() {
                           </div>
                           <div className="flex flex-col">
                             <span className="font-semibold text-sm text-[#2D2D2D] line-clamp-1">
-                              {item.guestName || item.guest_name || 'Huésped'}
+                              {item.guest_name}
                             </span>
                             <span className="text-[9px] text-[#8C8C8C] flex items-center gap-1 mt-0.5">
                               <Calendar size={10} />
-                              {new Date(item.createdAt || item.created_at || Date.now()).toLocaleDateString('es-MX')}
+                              {new Date(item.created_at || Date.now()).toLocaleDateString('es-MX')}
                             </span>
                           </div>
                         </div>
@@ -377,7 +352,6 @@ export default function FeedbackPage() {
                           <div className="bg-[#A68A64]/10 border border-[#A68A64]/20 px-2.5 py-1 rounded-lg text-[9px] font-bold text-[#A68A64] uppercase tracking-wider">
                             ★ {item.rating} / 10
                           </div>
-                          {/* Delete button — no window.confirm, opens custom dialog */}
                           <button
                             type="button"
                             onClick={(e) => requestDelete(item, e)}

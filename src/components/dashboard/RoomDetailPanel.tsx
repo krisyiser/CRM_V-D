@@ -1,41 +1,19 @@
 "use client";
-import React, { useState } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, BedDouble, User, CalendarCheck, LogOut, MoreHorizontal, Edit2, Phone, Mail } from 'lucide-react';
-
-interface Reservation {
-  id: string;
-  guestId: string;
-  guestName: string;
-  roomId: string;
-  dates: string;
-  notes?: string;
-  paymentStatus: string;
-}
+import { X, BedDouble, User, CalendarCheck, LogOut } from 'lucide-react';
+import type { Room, Reservation } from '@/types';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  room: any;
+  room: Room | null;
   currentReservation: Reservation | null;
   upcomingReservations: Reservation[];
   onCheckout: (roomId: string) => void;
 }
 
 export default function RoomDetailPanel({ isOpen, onClose, room, currentReservation, upcomingReservations = [], onCheckout }: Props) {
-  const [showFeedback, setShowFeedback] = useState(false);
-  const [ratings, setRatings] = useState({
-    reception: 0,
-    staff: 0,
-    cleaning: 0,
-    value: 0,
-    comfort: 0,
-    facilities: 0,
-    overall: 10,
-    recommend: 'yes'
-  });
-  const [comments, setComments] = useState('');
-
   if (!room) return null;
 
   const statusLabel = room.status === 'available' ? 'Disponible' : room.status === 'occupied' ? 'En Uso' : 'Mantenimiento';
@@ -83,9 +61,8 @@ export default function RoomDetailPanel({ isOpen, onClose, room, currentReservat
               <div className="space-y-4">
                 <p className="text-[10px] font-bold text-[#8C8C8C] uppercase tracking-widest">Detalles de Suite</p>
                 {[
-                  { label: 'Categoría', value: room.roomType || 'Estándar' },
+                  { label: 'Categoría', value: room.room_type || 'Estándar' },
                   { label: 'Precio por Noche', value: room.price ? `$${room.price.toLocaleString()} MXN` : '—' },
-                  { label: 'Capacidad', value: room.capacity ? `${room.capacity} personas` : '—' },
                 ].map(item => (
                   <div key={item.label} className="flex justify-between items-center p-4 bg-[#F9F7F2] rounded-2xl border border-[#E8E4D9]">
                     <span className="text-[10px] font-bold text-[#8C8C8C] uppercase tracking-widest">{item.label}</span>
@@ -101,16 +78,16 @@ export default function RoomDetailPanel({ isOpen, onClose, room, currentReservat
                   <div className="p-6 bg-[#A68A64]/5 border border-[#A68A64]/20 rounded-2xl space-y-3">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-[#A68A64] flex items-center justify-center text-white font-bold text-sm">
-                        {currentReservation.guestName?.slice(0, 2).toUpperCase()}
+                        {currentReservation.guest_name?.slice(0, 2).toUpperCase()}
                       </div>
                       <div>
-                        <p className="font-semibold text-[#2D2D2D]">{currentReservation.guestName}</p>
+                        <p className="font-semibold text-[#2D2D2D]">{currentReservation.guest_name}</p>
                         <p className="text-[10px] text-[#A68A64] font-bold uppercase tracking-widest">Huésped Activo</p>
                       </div>
                     </div>
                     {[
                       { icon: <CalendarCheck size={14} />, label: 'Fechas', value: currentReservation.dates },
-                      { icon: <User size={14} />, label: 'Pago', value: currentReservation.paymentStatus === 'paid' ? 'Pagado ✓' : 'Pendiente' },
+                      { icon: <User size={14} />, label: 'Pago', value: currentReservation.payment_status === 'paid' ? 'Pagado ✓' : 'Pendiente' },
                     ].map(row => (
                       <div key={row.label} className="flex items-center gap-3 text-sm text-[#6B6B6B]">
                         <span className="text-[#A68A64]">{row.icon}</span>
@@ -145,11 +122,11 @@ export default function RoomDetailPanel({ isOpen, onClose, room, currentReservat
                     {upcomingReservations.map(res => (
                       <div key={res.id} className="p-4 bg-white border border-[#E8E4D9] rounded-2xl space-y-2">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs font-bold text-[#2D2D2D]">{res.guestName}</span>
+                          <span className="text-xs font-bold text-[#2D2D2D]">{res.guest_name}</span>
                           <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold uppercase tracking-widest ${
-                            res.paymentStatus === 'paid' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-[#C2A88D]/10 text-[#C2A88D]'
+                            res.payment_status === 'paid' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-[#C2A88D]/10 text-[#C2A88D]'
                           }`}>
-                            {res.paymentStatus === 'paid' ? 'Pagado' : 'Pendiente'}
+                            {res.payment_status === 'paid' ? 'Pagado' : 'Pendiente'}
                           </span>
                         </div>
                         <p className="text-[10px] text-[#A68A64] font-semibold">{res.dates}</p>
