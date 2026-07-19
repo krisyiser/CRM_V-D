@@ -1,7 +1,42 @@
 [
-  { "id": "101", "name": "Moros y cristianos", "room_type": "Suite", "status": "available", "price": 2300, "image": null },
-  { "id": "102", "name": "El Volador", "room_type": "Suite", "status": "available", "price": 1600, "image": null },
-  { "id": "103", "name": "Guagua", "room_type": "Estándar", "status": "available", "price": 1100, "image": null },
-  { "id": "104", "name": "Negritos", "room_type": "Estándar", "status": "available", "price": 1100, "image": null },
-  { "id": "105", "name": "Santiagueros", "room_type": "Suite", "status": "available", "price": 1600, "image": null }
+  {
+    "id": "101",
+    "name": "Moros y cristianos",
+    "room_type": "Suite",
+    "status": "occupied",
+    "price": 2300,
+    "image": null
+  },
+  {
+    "id": "102",
+    "name": "El Volador",
+    "room_type": "Suite",
+    "status": "available",
+    "price": 1600,
+    "image": null
+  },
+  {
+    "id": "103",
+    "name": "Guagua",
+    "room_type": "Estándar",
+    "status": "available",
+    "price": 1100,
+    "image": null
+  },
+  {
+    "id": "104",
+    "name": "Negritos",
+    "room_type": "Estándar",
+    "status": "available",
+    "price": 1100,
+    "image": null
+  },
+  {
+    "id": "105",
+    "name": "Santiagueros",
+    "room_type": "Suite",
+    "status": "available",
+    "price": 1600,
+    "image": null
+  }
 ]
