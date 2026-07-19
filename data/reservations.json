@@ -1,20 +1,5 @@
 [
   {
-    "id": "res_hist_1",
-    "room_id": "101",
-    "guest_id": "g_hist_1",
-    "guest_name": "Huésped Moros Y Cristianos (2026-03-19)",
-    "check_in": "2026-03-19",
-    "check_out": "2026-03-23",
-    "dates": "2026-03-19 - 2026-03-23",
-    "total_price": 11200,
-    "notes": "Historial anterior RESRV.xlsx | Mes: MARZO | Pago: TRANSFERENCIA ",
-    "payment_status": "paid",
-    "status": "Confirmed",
-    "external_id": "RESRV.xlsx",
-    "created_at": "2026-03-19T12:00:00.000Z"
-  },
-  {
     "id": "res_hist_2",
     "room_id": "102",
     "guest_id": "g_hist_2",
