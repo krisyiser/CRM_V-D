@@ -1,1 +1,10 @@
-[]
+[
+  {
+    "id": "rc_1784436730852",
+    "room_id": "101",
+    "guest_name": "Huésped Moros Y Cristianos (2026-03-19)",
+    "items_json": "{\"checkIn\":\"2026-03-19\",\"checkOut\":\"2026-03-23\",\"nights\":4,\"roomPrice\":2800,\"roomTotal\":11200,\"dayPass\":{\"active\":false,\"details\":\"N/A\",\"total\":0},\"parking\":{\"active\":false,\"total\":0},\"barCharges\":[{\"name\":\"Latte\",\"price\":50,\"quantity\":1,\"total\":50,\"date\":\"2026-07-19T04:51:18.867Z\"},{\"name\":\"Capuchino\",\"price\":45,\"quantity\":1,\"total\":45,\"date\":\"2026-07-19T04:51:18.867Z\"}],\"checkoutExtras\":[],\"grandTotal\":11295,\"checkoutPaid\":true}",
+    "total": 11295,
+    "created_at": "2026-07-19T04:52:10.852Z"
+  }
+]
