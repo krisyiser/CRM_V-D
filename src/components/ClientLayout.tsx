@@ -107,11 +107,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   return (
     <div className="flex h-screen bg-[#F9F7F2] overflow-hidden">
-      {/* Sidebar */}
+      {/* Desktop Sidebar (hidden on mobile/tablet) */}
       <motion.aside
         animate={{ width: collapsed ? 80 : 280 }}
         transition={{ type: 'spring', damping: 28, stiffness: 200 }}
-        className="bg-white border-r border-[#E8E4D9] flex flex-col shrink-0 z-30 relative"
+        className="hidden md:flex bg-white border-r border-[#E8E4D9] flex-col shrink-0 z-30 relative"
       >
         {/* Brand */}
         <div className="p-6 border-b border-[#E8E4D9] flex items-center gap-3 min-h-[80px]">
@@ -142,7 +142,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                 key={item.id}
                 onClick={() => router.push(item.path)}
                 title={collapsed ? item.label : undefined}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all active:scale-95 ${
                   active
                     ? 'bg-[#A68A64] text-white shadow-lg shadow-[#A68A64]/20'
                     : 'text-[#8C8C8C] hover:bg-[#F9F7F2] hover:text-[#2D2D2D]'
@@ -195,16 +195,22 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         </button>
       </motion.aside>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Top Bar */}
-        <header className="h-[72px] bg-white border-b border-[#E8E4D9] px-8 flex items-center justify-between shrink-0">
-          <div />
-          <div className="flex items-center gap-4">
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col overflow-hidden pb-16 md:pb-0">
+        {/* Top Header */}
+        <header className="h-[64px] md:h-[72px] bg-white border-b border-[#E8E4D9] px-4 md:px-8 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2 md:hidden">
+            <div className="w-8 h-8 rounded-xl bg-[#A68A64] flex items-center justify-center text-white font-bold text-xs shadow-md">
+              V&D
+            </div>
+            <span className="font-bold text-sm text-[#2D2D2D]">Vainilla Concierge</span>
+          </div>
+
+          <div className="flex items-center gap-3 ml-auto">
             {/* Notifications Bell */}
             <button
               onClick={() => setShowNotifications(!showNotifications)}
-              className="relative w-10 h-10 flex items-center justify-center rounded-xl text-[#8C8C8C] hover:bg-[#F9F7F2] hover:text-[#2D2D2D] transition-colors"
+              className="relative w-10 h-10 flex items-center justify-center rounded-xl text-[#8C8C8C] hover:bg-[#F9F7F2] hover:text-[#2D2D2D] transition-colors active:scale-95"
             >
               <Bell size={20} />
               {unread > 0 && (
@@ -215,7 +221,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             </button>
 
             {/* Profile */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 cursor-pointer" onClick={() => setShowSettings(true)}>
               <div className="w-9 h-9 rounded-xl bg-[#A68A64] flex items-center justify-center text-white text-xs font-bold shadow-md shadow-[#A68A64]/20">
                 {profile.initials}
               </div>
@@ -228,10 +234,29 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar-light">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar-light">
           {children}
         </div>
       </main>
+
+      {/* Mobile & Tablet Fixed Bottom Touch Bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-[#E8E4D9] z-50 flex items-center justify-around px-2 shadow-2xl">
+        {NAV_ITEMS.map(item => {
+          const active = pathname === item.path;
+          return (
+            <button
+              key={item.id}
+              onClick={() => router.push(item.path)}
+              className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all active:scale-90 ${
+                active ? 'text-[#A68A64] font-bold' : 'text-[#8C8C8C]'
+              }`}
+            >
+              <span className={`transition-transform ${active ? 'scale-110' : ''}`}>{item.icon}</span>
+              <span className="text-[9px] font-bold tracking-tight mt-0.5">{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
 
       {/* Modals & Panels */}
       {showNotifications && (

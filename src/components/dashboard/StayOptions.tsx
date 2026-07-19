@@ -16,11 +16,48 @@ export default function StayOptions({
   rooms,
   fetchingRooms,
 }: Props) {
+  const setQuickStay = (nights: number) => {
+    const today = new Date();
+    const ciStr = today.toISOString().split('T')[0];
+    const coDate = new Date(today);
+    coDate.setDate(coDate.getDate() + nights);
+    const coStr = coDate.toISOString().split('T')[0];
+    setFormData((prev: any) => ({ ...prev, checkIn: ciStr, checkOut: coStr }));
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-[#A68A64]">
-        <Bed size={16} />
-        <span className="text-[10px] font-bold uppercase tracking-widest">Logística de Estancia</span>
+    <div className="space-y-6 text-left">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-[#A68A64]">
+          <Bed size={16} />
+          <span className="text-[10px] font-bold uppercase tracking-widest">Logística de Estancia</span>
+        </div>
+
+        {/* Quick presets for Touch Screens */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[9px] font-bold text-[#8C8C8C] uppercase mr-1">Preajustes:</span>
+          <button
+            type="button"
+            onClick={() => setQuickStay(1)}
+            className="px-2 py-1 bg-[#F9F7F2] hover:bg-[#A68A64] hover:text-white border border-[#E8E4D9] rounded-lg text-[9px] font-bold uppercase transition-all"
+          >
+            1 Noche
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuickStay(2)}
+            className="px-2 py-1 bg-[#F9F7F2] hover:bg-[#A68A64] hover:text-white border border-[#E8E4D9] rounded-lg text-[9px] font-bold uppercase transition-all"
+          >
+            2 Noches
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuickStay(3)}
+            className="px-2 py-1 bg-[#F9F7F2] hover:bg-[#A68A64] hover:text-white border border-[#E8E4D9] rounded-lg text-[9px] font-bold uppercase transition-all"
+          >
+            3 Noches
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 text-left">
@@ -106,9 +143,9 @@ export default function StayOptions({
               key={method}
               type="button"
               onClick={() => setFormData({...formData, paymentMethod: method})}
-              className={`py-2 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all border ${
+              className={`py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border active:scale-95 ${
                 formData.paymentMethod === method 
-                  ? 'bg-[#A68A64]/10 text-[#A68A64] border-[#A68A64]' 
+                  ? 'bg-[#A68A64] text-white border-[#A68A64] shadow-md' 
                   : 'bg-white text-[#8C8C8C] border-[#E8E4D9]'
               }`}
             >

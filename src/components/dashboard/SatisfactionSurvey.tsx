@@ -48,7 +48,7 @@ export default function SatisfactionSurvey({
                       ...survey,
                       [cat.key]: { ...survey[cat.key], rating: opt }
                     })}
-                    className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all ${
+                    className={`px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider border transition-all active:scale-95 ${
                       isSelected
                         ? 'bg-[#A68A64] text-white border-[#A68A64] shadow-sm shadow-[#A68A64]/10'
                         : 'bg-white text-[#6B6B6B] border-[#E8E4D9] hover:bg-[#F9F7F2]'
@@ -68,7 +68,7 @@ export default function SatisfactionSurvey({
                 ...survey,
                 [cat.key]: { ...survey[cat.key], comment: e.target.value }
               })}
-              className="w-full bg-white border border-[#E8E4D9] rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#A68A64]/20 transition-all text-[#2D2D2D]"
+              className="w-full bg-white border border-[#E8E4D9] rounded-2xl py-3 px-4 text-xs focus:outline-none focus:ring-2 focus:ring-[#A68A64]/20 transition-all text-[#2D2D2D]"
             />
           </div>
         ))}
@@ -83,18 +83,16 @@ export default function SatisfactionSurvey({
             {['yes', 'no'].map(opt => {
               const isSelected = survey.recommend === opt;
               return (
-                <label key={opt} className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="radio"
-                    name="recommend"
-                    checked={isSelected}
-                    onChange={() => setSurvey({ ...survey, recommend: opt })}
-                    className="text-[#A68A64] focus:ring-[#A68A64]/30"
-                  />
-                  <span className="text-xs font-semibold text-[#2D2D2D] uppercase">
-                    {opt === 'yes' ? 'Sí' : 'No'}
-                  </span>
-                </label>
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setSurvey({ ...survey, recommend: opt })}
+                  className={`flex-1 py-3 rounded-2xl text-xs font-bold uppercase tracking-widest border transition-all active:scale-95 ${
+                    isSelected ? 'bg-[#A68A64] text-white border-[#A68A64]' : 'bg-white text-[#6B6B6B] border-[#E8E4D9]'
+                  }`}
+                >
+                  {opt === 'yes' ? '✓ Sí, lo recomendaría' : 'No'}
+                </button>
               );
             })}
           </div>
@@ -103,7 +101,7 @@ export default function SatisfactionSurvey({
             placeholder="¿Por qué?"
             value={survey.recommendWhy}
             onChange={(e) => setSurvey({ ...survey, recommendWhy: e.target.value })}
-            className="w-full bg-white border border-[#E8E4D9] rounded-xl py-2 px-3 text-xs focus:outline-none focus:ring-2 focus:ring-[#A68A64]/20 transition-all text-[#2D2D2D]"
+            className="w-full bg-white border border-[#E8E4D9] rounded-2xl py-3 px-4 text-xs focus:outline-none focus:ring-2 focus:ring-[#A68A64]/20 transition-all text-[#2D2D2D]"
           />
         </div>
 
@@ -113,7 +111,7 @@ export default function SatisfactionSurvey({
             <h4 className="text-xs font-bold text-[#2D2D2D] uppercase tracking-wider">Calificación General</h4>
             <p className="text-[11px] text-[#8C8C8C] mt-0.5">Califique su estancia en una escala del 1 al 10:</p>
           </div>
-          <div className="flex flex-wrap gap-1.5 py-2">
+          <div className="flex flex-wrap gap-2 py-2">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => {
               const isSelected = survey.overallScore === num;
               return (
@@ -121,9 +119,9 @@ export default function SatisfactionSurvey({
                   key={num}
                   type="button"
                   onClick={() => setSurvey({ ...survey, overallScore: num })}
-                  className={`w-8 h-8 rounded-full text-xs font-bold flex items-center justify-center transition-all ${
+                  className={`w-10 h-10 rounded-2xl text-xs font-bold flex items-center justify-center transition-all active:scale-90 ${
                     isSelected
-                      ? 'bg-[#A68A64] text-white shadow-md shadow-[#A68A64]/20'
+                      ? 'bg-[#A68A64] text-white shadow-md shadow-[#A68A64]/20 ring-4 ring-[#A68A64]/20'
                       : 'bg-white border border-[#E8E4D9] text-[#6B6B6B] hover:bg-[#F9F7F2]'
                   }`}
                 >
