@@ -1,1 +1,290 @@
-[]
+[
+  {
+    "id": "g_hist_1",
+    "name": "Huésped Moros Y Cristianos (2026-03-19)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-03-19T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_2",
+    "name": "Huésped El Volador (2026-03-19)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-03-19T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_3",
+    "name": "Huésped Santiagueros (2026-03-19)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-03-19T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_4",
+    "name": "Huésped Negritos (2026-03-20)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-03-20T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_5",
+    "name": "Huésped Guaguas (2026-03-21)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-03-21T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_6",
+    "name": "Huésped Negritos (2026-03-21)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-03-21T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_7",
+    "name": "Huésped Moros Y Cristianos (2026-03-29)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-03-29T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_8",
+    "name": "Huésped Santiagueros (2026-03-29)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-03-29T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_9",
+    "name": "Huésped Moros Y Cristianos (2026-04-03)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-04-03T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_10",
+    "name": "Huésped El Volador (2026-04-03)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-04-03T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_11",
+    "name": "Huésped Santiagueros (2026-04-03)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-04-03T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_12",
+    "name": "Huésped El Volador (2026-04-04)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-04-04T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_13",
+    "name": "Huésped Santiagueros (2026-04-04)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-04-04T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_14",
+    "name": "Huésped Negritos (2026-04-04)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-04-04T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_15",
+    "name": "Huésped Santiagueros (2026-04-11)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-04-11T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_16",
+    "name": "Huésped Guaguas (2026-04-11)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-04-11T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_17",
+    "name": "Huésped Negritos (2026-04-11)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-04-11T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_18",
+    "name": "Huésped Negritos (2026-04-14)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-04-14T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_19",
+    "name": "Huésped Guaguas (2026-04-15)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-04-15T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_20",
+    "name": "Huésped Guaguas (2026-04-17)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-04-17T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_21",
+    "name": "Huésped Santiagueros (2026-04-24)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-04-24T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_22",
+    "name": "Huésped Guaguas (2026-04-28)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-04-28T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_23",
+    "name": "Huésped Negritos (2026-04-29)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-04-29T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_24",
+    "name": "Huésped Negritos (2026-04-30)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-04-30T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_25",
+    "name": "Huésped Guaguas (2026-05-01)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-05-01T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_26",
+    "name": "Huésped Negritos (2026-05-01)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-05-01T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_27",
+    "name": "Huésped Guaguas (2026-05-02)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-05-02T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_28",
+    "name": "Huésped Negritos (2026-05-02)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-05-02T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_29",
+    "name": "Huésped Santiagueros (2026-05-02)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-05-02T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_30",
+    "name": "Huésped El Volador (2026-05-02)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-05-02T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_31",
+    "name": "Huésped Moros Y Cristianos (2026-05-02)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-05-02T12:00:00.000Z"
+  },
+  {
+    "id": "g_hist_32",
+    "name": "Huésped El Volador (2026-05-03)",
+    "email": null,
+    "phone": null,
+    "id_number": "Histórico Excel",
+    "origin": "RESRV.xlsx",
+    "created_at": "2026-05-03T12:00:00.000Z"
+  }
+]
