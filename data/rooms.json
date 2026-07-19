@@ -3,7 +3,7 @@
     "id": "101",
     "name": "Moros y cristianos",
     "room_type": "Suite",
-    "status": "occupied",
+    "status": "available",
     "price": 2300,
     "image": null
   },
