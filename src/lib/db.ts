@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
+import type { Reservation } from '@/types';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 
@@ -63,7 +64,6 @@ export async function writeJson<T>(filename: string, data: T): Promise<void> {
   if (ghToken) {
     (async () => {
       try {
-        // Fetch current file SHA
         const metaRes = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${filename}`, {
           headers: {
             'Authorization': `Bearer ${ghToken}`,
@@ -77,7 +77,6 @@ export async function writeJson<T>(filename: string, data: T): Promise<void> {
           sha = meta.sha;
         }
 
-        // Commit and push update directly to GitHub Repository
         const contentBase64 = Buffer.from(jsonString).toString('base64');
         await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${filename}`, {
           method: 'PUT',
@@ -97,7 +96,56 @@ export async function writeJson<T>(filename: string, data: T): Promise<void> {
       }
     })();
   } else {
-    // 3. Local background git auto-commit if running locally
     exec(`git add data/${filename} && git commit -m "auto-sync: update ${filename}"`, () => {});
   }
+}
+
+/**
+ * Fetches online reservations created by guests on the public website's GitHub repository.
+ */
+export async function fetchWebsiteReservationsFromGitHub(): Promise<Reservation[]> {
+  const websiteRepo = process.env.WEBSITE_GITHUB_REPO || process.env.GITHUB_REPO || 'krisyiser/CRM_V-D';
+  const ghToken = process.env.GITHUB_TOKEN;
+
+  const pathsToTry = [
+    `https://raw.githubusercontent.com/${websiteRepo}/main/data/web_reservations.json`,
+    `https://raw.githubusercontent.com/${websiteRepo}/main/data/reservations.json`,
+    `https://api.github.com/repos/${websiteRepo}/contents/data/web_reservations.json`,
+    `https://api.github.com/repos/${websiteRepo}/contents/data/reservations.json`
+  ];
+
+  for (const targetUrl of pathsToTry) {
+    try {
+      const headers: Record<string, string> = { 'User-Agent': 'Vainilla-CRM' };
+      if (ghToken) headers['Authorization'] = `Bearer ${ghToken}`;
+      if (targetUrl.includes('api.github.com')) headers['Accept'] = 'application/vnd.github.v3.raw';
+
+      const res = await fetch(targetUrl, { headers, cache: 'no-store' });
+      if (res.ok) {
+        const text = await res.text();
+        const parsed = JSON.parse(text);
+        if (Array.isArray(parsed)) {
+          return parsed.map((item: any, index: number) => ({
+            id: item.id || `web_res_${index}_${Date.now()}`,
+            room_id: String(item.room_id || item.roomId || '101'),
+            guest_id: item.guest_id || null,
+            guest_name: item.guest_name || item.guestName || item.name || 'Huésped Web',
+            check_in: item.check_in || item.checkIn || (item.dates?.split(' - ')[0] ?? ''),
+            check_out: item.check_out || item.checkOut || (item.dates?.split(' - ')[1] ?? ''),
+            dates: item.dates || `${item.check_in || item.checkIn} - ${item.check_out || item.checkOut}`,
+            total_price: Number(item.total_price || item.totalPrice || item.total || 0),
+            notes: item.notes ? `Reserva Web | ${item.notes}` : 'Reserva Web desde Sitio Oficial',
+            payment_status: item.payment_status || 'paid',
+            status: item.status || 'Confirmed',
+            external_id: item.external_id || item.id || 'WEB_SITE',
+            created_at: item.created_at || new Date().toISOString()
+          }));
+        }
+      }
+    } catch (e) {
+      // Continue to next path
+    }
+  }
+
+  return [];
 }

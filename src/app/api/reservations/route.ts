@@ -1,9 +1,30 @@
 import { NextResponse } from 'next/server';
-import { readJson, writeJson } from '@/lib/db';
+import { readJson, writeJson, fetchWebsiteReservationsFromGitHub } from '@/lib/db';
 import type { Reservation } from '@/types';
 
 export async function GET() {
-  const reservations = await readJson<Reservation[]>('reservations.json', []);
+  let reservations = await readJson<Reservation[]>('reservations.json', []);
+
+  // Sync with website GitHub repository
+  try {
+    const webReservations = await fetchWebsiteReservationsFromGitHub();
+    if (webReservations.length > 0) {
+      let updated = false;
+      webReservations.forEach(webRes => {
+        const exists = reservations.some(r => r.id === webRes.id || (webRes.external_id && r.external_id === webRes.external_id));
+        if (!exists) {
+          reservations.push(webRes);
+          updated = true;
+        }
+      });
+      if (updated) {
+        await writeJson('reservations.json', reservations);
+      }
+    }
+  } catch (e) {
+    console.error('[Website GitHub Sync] Error syncing website reservations:', e);
+  }
+
   return NextResponse.json(reservations);
 }
 
