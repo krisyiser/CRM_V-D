@@ -123,12 +123,14 @@ export default function DashboardPage() {
             const st = getStatusStyle(room.status);
             const todayRes = todayReservations.find(r => r.room_id === room.id);
             return (
-              <motion.button
+              <motion.div
                 key={room.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => setSelectedRoom(room)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className={`text-left p-5 rounded-[24px] border ${st.bg} transition-all shadow-sm hover:shadow-md`}
+                className={`text-left p-5 rounded-[24px] border ${st.bg} transition-all shadow-sm hover:shadow-md cursor-pointer`}
               >
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-2xl font-bold text-[#2D2D2D]">{room.id}</span>
@@ -154,7 +156,7 @@ export default function DashboardPage() {
                     <Plus size={12} /> Check-In
                   </button>
                 )}
-              </motion.button>
+              </motion.div>
             );
           })}
         </div>
