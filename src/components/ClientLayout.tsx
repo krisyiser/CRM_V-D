@@ -55,12 +55,18 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     });
   }, []);
 
-  // Fetch notifications
-  useEffect(() => {
+  const loadNotifications = useCallback(() => {
     apiFetch<Notification[]>(API.notifications)
       .then(data => setNotifications(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
+
+  // Fetch notifications
+  useEffect(() => {
+    loadNotifications();
+    window.addEventListener('notifications_updated', loadNotifications);
+    return () => window.removeEventListener('notifications_updated', loadNotifications);
+  }, [loadNotifications]);
 
   const unread = notifications.filter(n => !n.read).length;
 
@@ -118,7 +124,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
-                className="overflow-hidden"
+                className="overflow-hidden text-left"
               >
                 <h1 className="text-sm font-semibold text-[#2D2D2D] whitespace-nowrap">Vainilla & Descanso</h1>
                 <p className="text-[9px] text-[#A68A64] font-bold uppercase tracking-widest">Lobby Concierge</p>
@@ -227,7 +233,14 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         </div>
       </main>
 
-      {/* Lazy-loaded modals */}
+      {/* Modals & Panels */}
+      {showNotifications && (
+        <NotificationsPanelWrapper
+          isOpen={showNotifications}
+          onClose={() => setShowNotifications(false)}
+        />
+      )}
+
       {showSettings && (
         <SettingsModalWrapper
           isOpen={showSettings}
@@ -240,10 +253,17 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   );
 }
 
-/**
- * Lazy wrapper for SettingsModal to avoid importing it at the top level.
- * Reduces initial bundle size.
- */
+function NotificationsPanelWrapper(props: { isOpen: boolean; onClose: () => void }) {
+  const [Mod, setMod] = useState<React.ComponentType<{ isOpen: boolean; onClose: () => void }> | null>(null);
+
+  useEffect(() => {
+    import('./dashboard/NotificationsPanel').then(m => setMod(() => m.default));
+  }, []);
+
+  if (!Mod) return null;
+  return <Mod isOpen={props.isOpen} onClose={props.onClose} />;
+}
+
 function SettingsModalWrapper(props: {
   isOpen: boolean;
   onClose: () => void;
