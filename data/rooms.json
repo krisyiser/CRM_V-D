@@ -1,0 +1,7 @@
+[
+  { "id": "101", "name": "Suite Vainilla Imperial", "room_type": "Suite Nupcial", "status": "available", "price": 2800, "image": null },
+  { "id": "102", "name": "Suite Descanso Real", "room_type": "King Suite", "status": "available", "price": 1950, "image": null },
+  { "id": "103", "name": "Suite Jardín Secret", "room_type": "Estándar Doble", "status": "available", "price": 1400, "image": null },
+  { "id": "104", "name": "Suite Solsticio", "room_type": "Estándar Sencilla", "status": "available", "price": 1400, "image": null },
+  { "id": "105", "name": "Suite Brisa Marina", "room_type": "Junior Suite", "status": "available", "price": 1950, "image": null }
+]

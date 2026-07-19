@@ -1,26 +1,20 @@
-import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { readJson, writeJson } from '@/lib/db';
+import type { Notification } from '@/types';
 
 export async function GET() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('*')
-    .order('timestamp', { ascending: false })
-    .limit(50);
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  const notifications = await readJson<Notification[]>('notifications.json', []);
+  return NextResponse.json(notifications);
 }
 
 export async function PATCH(request: Request) {
-  const supabase = await createClient();
-  const { id } = await request.json();
-  const { error } = await supabase
-    .from('notifications')
-    .update({ read: true })
-    .eq('id', id);
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+  try {
+    const { id } = await request.json();
+    const notifications = await readJson<Notification[]>('notifications.json', []);
+    const updated = notifications.map(n => n.id === id ? { ...n, read: true } : n);
+    await writeJson('notifications.json', updated);
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }

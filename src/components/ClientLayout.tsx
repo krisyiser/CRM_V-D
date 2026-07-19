@@ -41,7 +41,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   // Fetch user session
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then((res: any) => {
+      const user = res?.data?.user;
       if (user) {
         const name = user.user_metadata?.name || user.email?.split('@')[0] || 'Admin';
         const parts = name.trim().split(' ');

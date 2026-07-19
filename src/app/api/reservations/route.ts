@@ -1,78 +1,56 @@
-import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { readJson, writeJson } from '@/lib/db';
+import type { Reservation } from '@/types';
 
 export async function GET() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('reservations')
-    .select('*')
-    .order('check_in', { ascending: false });
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // Add computed `dates` field for frontend compatibility
-  const withDates = (data ?? []).map(r => ({
-    ...r,
-    dates: `${r.check_in} - ${r.check_out}`,
-  }));
-
-  return NextResponse.json(withDates);
+  const reservations = await readJson<Reservation[]>('reservations.json', []);
+  return NextResponse.json(reservations);
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const body = await request.json();
+  try {
+    const body = await request.json();
+    const reservations = await readJson<Reservation[]>('reservations.json', []);
 
-  const checkIn = body.check_in || (body.dates?.split(' - ')[0] ?? '');
-  const checkOut = body.check_out || (body.dates?.split(' - ')[1] ?? '');
-  const guestName = (body.guest_name ?? '').trim();
+    const checkIn = body.check_in || (body.dates?.split(' - ')[0] ?? '');
+    const checkOut = body.check_out || (body.dates?.split(' - ')[1] ?? '');
 
-  // Auto-register guest if not exists
-  let guestId = body.guest_id || null;
-  if (!guestId && guestName) {
-    const { data: existing } = await supabase
-      .from('guests')
-      .select('id')
-      .ilike('name', guestName)
-      .limit(1)
-      .single();
-
-    if (existing) {
-      guestId = existing.id;
-    } else {
-      const { data: newGuest } = await supabase
-        .from('guests')
-        .insert({ name: guestName, origin: body.origin || 'Lobby' })
-        .select('id')
-        .single();
-      guestId = newGuest?.id ?? null;
-    }
-  }
-
-  const { data, error } = await supabase
-    .from('reservations')
-    .insert({
+    const newReservation: Reservation = {
+      id: body.id || `res_${Date.now()}`,
       room_id: body.room_id,
-      guest_id: guestId,
-      guest_name: guestName,
+      guest_id: body.guest_id || null,
+      guest_name: body.guest_name,
       check_in: checkIn,
       check_out: checkOut,
-      total_price: body.total_price ?? 0,
-      notes: body.notes ?? null,
-      payment_status: body.payment_status ?? 'paid',
-      status: 'Confirmed',
-    })
-    .select()
-    .single();
+      dates: body.dates || `${checkIn} - ${checkOut}`,
+      total_price: Number(body.total_price) || 0,
+      notes: body.notes || null,
+      payment_status: body.payment_status || 'paid',
+      status: body.status || 'Confirmed',
+      external_id: body.external_id || null,
+      created_at: new Date().toISOString(),
+    };
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ...data, dates: `${data.check_in} - ${data.check_out}` }, { status: 201 });
+    reservations.push(newReservation);
+    await writeJson('reservations.json', reservations);
+
+    return NextResponse.json(newReservation);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
 
 export async function DELETE(request: Request) {
-  const supabase = await createClient();
-  const { id } = await request.json();
-  const { error } = await supabase.from('reservations').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return new NextResponse(null, { status: 200 });
+  try {
+    const { id } = await request.json();
+    if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+    const reservations = await readJson<Reservation[]>('reservations.json', []);
+    const filtered = reservations.filter(r => r.id !== id);
+    await writeJson('reservations.json', filtered);
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }

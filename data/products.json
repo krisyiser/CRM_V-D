@@ -1,0 +1,11 @@
+[
+  { "id": "p1", "name": "Omelette con Champiñones", "category": "Desayunos", "price": 140, "stock": 50, "image": null, "created_at": "2026-07-18T10:00:00.000Z" },
+  { "id": "p2", "name": "Chilaquiles Verdes con Pollo", "category": "Desayunos", "price": 160, "stock": 50, "image": null, "created_at": "2026-07-18T10:00:00.000Z" },
+  { "id": "p3", "name": "Café Americano Artesanal", "category": "Café", "price": 45, "stock": 100, "image": null, "created_at": "2026-07-18T10:00:00.000Z" },
+  { "id": "p4", "name": "Capuchino Vainilla Especial", "category": "Café", "price": 65, "stock": 100, "image": null, "created_at": "2026-07-18T10:00:00.000Z" },
+  { "id": "p5", "name": "Carajillo Licor 43", "category": "Café", "price": 130, "stock": 80, "image": null, "created_at": "2026-07-18T10:00:00.000Z" },
+  { "id": "p6", "name": "Cerveza Corona Extra", "category": "Cerveza", "price": 50, "stock": 120, "image": null, "created_at": "2026-07-18T10:00:00.000Z" },
+  { "id": "p7", "name": "Cerveza Victoria 355ml", "category": "Cerveza", "price": 50, "stock": 120, "image": null, "created_at": "2026-07-18T10:00:00.000Z" },
+  { "id": "p8", "name": "Copa de Vino Tinto Casa Madero", "category": "Vinos", "price": 120, "stock": 40, "image": null, "created_at": "2026-07-18T10:00:00.000Z" },
+  { "id": "p9", "name": "Copa de Mezcal Amores Joven", "category": "Copas", "price": 110, "stock": 40, "image": null, "created_at": "2026-07-18T10:00:00.000Z" }
+]

@@ -1,17 +1,25 @@
-import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { readJson, writeJson } from '@/lib/db';
+import type { Room } from '@/types';
 
 export async function GET() {
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('rooms').select('*');
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  const rooms = await readJson<Room[]>('rooms.json', []);
+  return NextResponse.json(rooms);
 }
 
 export async function PATCH(request: Request) {
-  const supabase = await createClient();
-  const { id, status } = await request.json();
-  const { error } = await supabase.from('rooms').update({ status }).eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+  try {
+    const { id, status } = await request.json();
+    if (!id || !status) {
+      return NextResponse.json({ error: 'id and status required' }, { status: 400 });
+    }
+
+    const rooms = await readJson<Room[]>('rooms.json', []);
+    const updated = rooms.map(r => r.id === id ? { ...r, status } : r);
+    await writeJson('rooms.json', updated);
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }

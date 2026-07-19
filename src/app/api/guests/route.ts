@@ -1,70 +1,57 @@
-import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { readJson, writeJson } from '@/lib/db';
+import type { Guest } from '@/types';
 
 export async function GET() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('guests')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  const guests = await readJson<Guest[]>('guests.json', []);
+  return NextResponse.json(guests);
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const body = await request.json();
-  const name = (body.name ?? '').trim();
-
-  // Dedup: update existing guest by name (case-insensitive)
-  const { data: existing } = await supabase
-    .from('guests')
-    .select('*')
-    .ilike('name', name)
-    .limit(1)
-    .single();
-
-  if (existing) {
-    const updates: Record<string, string> = {};
-    if (body.email) updates.email = body.email.trim();
-    if (body.phone) updates.phone = body.phone.trim();
-    if (body.id_number) updates.id_number = body.id_number.trim();
-    if (body.origin) updates.origin = body.origin.trim();
-
-    if (Object.keys(updates).length > 0) {
-      await supabase.from('guests').update(updates).eq('id', existing.id);
+  try {
+    const body = await request.json();
+    const nameStr = (body.name || '').trim();
+    if (!nameStr) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
 
-    const { data: updated } = await supabase
-      .from('guests')
-      .select('*')
-      .eq('id', existing.id)
-      .single();
+    const guests = await readJson<Guest[]>('guests.json', []);
+    const existing = guests.find(g => g.name.toLowerCase() === nameStr.toLowerCase());
+    
+    if (existing) {
+      return NextResponse.json(existing);
+    }
 
-    return NextResponse.json(updated);
+    const newGuest: Guest = {
+      id: body.id || `g_${Date.now()}`,
+      name: nameStr,
+      email: body.email || null,
+      phone: body.phone || null,
+      id_number: body.id_number || null,
+      origin: body.origin || null,
+      created_at: new Date().toISOString(),
+    };
+
+    guests.push(newGuest);
+    await writeJson('guests.json', guests);
+
+    return NextResponse.json(newGuest);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
-  const { data, error } = await supabase
-    .from('guests')
-    .insert({
-      name,
-      email: body.email?.trim() || null,
-      phone: body.phone?.trim() || null,
-      id_number: body.id_number?.trim() || null,
-      origin: body.origin?.trim() || null,
-    })
-    .select()
-    .single();
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data, { status: 201 });
 }
 
 export async function DELETE(request: Request) {
-  const supabase = await createClient();
-  const { id } = await request.json();
-  const { error } = await supabase.from('guests').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return new NextResponse(null, { status: 200 });
+  try {
+    const { id } = await request.json();
+    if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+    const guests = await readJson<Guest[]>('guests.json', []);
+    const filtered = guests.filter(g => g.id !== id);
+    await writeJson('guests.json', filtered);
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }

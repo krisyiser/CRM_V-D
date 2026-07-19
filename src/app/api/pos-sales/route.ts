@@ -1,58 +1,46 @@
-import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { readJson, writeJson } from '@/lib/db';
+import type { PosSale } from '@/types';
 
 export async function GET() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from('pos_sales')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+  const sales = await readJson<PosSale[]>('pos_sales.json', []);
+  return NextResponse.json(sales);
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient();
-  const body = await request.json();
-  const { data, error } = await supabase
-    .from('pos_sales')
-    .insert({
-      items_json: body.items_json,
-      total: body.total,
+  try {
+    const body = await request.json();
+    const sales = await readJson<PosSale[]>('pos_sales.json', []);
+
+    const newSale: PosSale = {
+      id: body.id || `s_${Date.now()}`,
+      items_json: typeof body.items_json === 'string' ? body.items_json : JSON.stringify(body.items_json || []),
+      total: Number(body.total),
       payment_method: body.payment_method,
-      notes: body.notes ?? null,
-    })
-    .select()
-    .single();
+      notes: body.notes || null,
+      created_at: new Date().toISOString(),
+    };
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data, { status: 201 });
-}
+    sales.unshift(newSale);
+    await writeJson('pos_sales.json', sales);
 
-export async function PATCH(request: Request) {
-  const supabase = await createClient();
-  const body = await request.json();
-  const { data, error } = await supabase
-    .from('pos_sales')
-    .update({
-      items_json: body.items_json,
-      total: body.total,
-      payment_method: body.payment_method,
-      notes: body.notes ?? null,
-    })
-    .eq('id', body.id)
-    .select()
-    .single();
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+    return NextResponse.json(newSale);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
 
 export async function DELETE(request: Request) {
-  const supabase = await createClient();
-  const { id } = await request.json();
-  const { error } = await supabase.from('pos_sales').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return new NextResponse(null, { status: 200 });
+  try {
+    const { id } = await request.json();
+    if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+    const sales = await readJson<PosSale[]>('pos_sales.json', []);
+    const filtered = sales.filter(s => s.id !== id);
+    await writeJson('pos_sales.json', filtered);
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
