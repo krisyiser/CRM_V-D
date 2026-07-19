@@ -162,7 +162,8 @@ export default function Guests() {
           apiFetch<Reservation[]>(API.reservations),
           apiFetch<RoomCharge[]>(API.roomCharges),
         ]);
-        setGuests(Array.isArray(guestsData) ? guestsData : []);
+        const sortedGuests = (Array.isArray(guestsData) ? guestsData : []).sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+        setGuests(sortedGuests);
         setReservations(Array.isArray(resData) ? resData : []);
         setRoomCharges(Array.isArray(chargesData) ? chargesData : []);
       } catch (error) {

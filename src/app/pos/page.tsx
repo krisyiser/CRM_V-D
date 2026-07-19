@@ -6,7 +6,7 @@ import { apiFetch, API } from '@/lib/api';
 import { toast } from '@/components/Toast';
 import type { Product, CartItem, PosSale, Room, Reservation } from '@/types';
 import PosProductList from '@/components/pos/PosProductList';
-import PosCart from '@/components/pos/PosCart';
+import PosCart, { OpenTable } from '@/components/pos/PosCart';
 import PosSalesHistory from '@/components/pos/PosSalesHistory';
 
 export default function PosPage() {
@@ -21,6 +21,10 @@ export default function PosPage() {
   const [notes, setNotes] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
+  // Open tables state
+  const [openTables, setOpenTables] = useState<OpenTable[]>([]);
+  const [activeTableId, setActiveTableId] = useState<string | null>(null);
+
   // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newProduct, setNewProduct] = useState({ name: '', category: 'Desayunos', price: '' });
@@ -33,6 +37,27 @@ export default function PosPage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
 
   const categories = ['Todas', 'Desayunos', 'Café', 'Cerveza', 'Vinos', 'Copas', 'Digestivos', 'Extras'];
+
+  const loadOpenTables = useCallback(async () => {
+    try {
+      const data = await apiFetch<OpenTable[]>('/api/open-tables');
+      if (Array.isArray(data)) setOpenTables(data);
+    } catch (err) {
+      console.error('Error loading open tables:', err);
+    }
+  }, []);
+
+  const syncOpenTables = async (newList: OpenTable[]) => {
+    setOpenTables(newList);
+    try {
+      await apiFetch('/api/open-tables', {
+        method: 'POST',
+        body: JSON.stringify(newList)
+      });
+    } catch (e) {
+      console.error('Error saving open tables:', e);
+    }
+  };
 
   const loadRoomsAndReservations = useCallback(async () => {
     try {
@@ -72,7 +97,8 @@ export default function PosPage() {
     loadProducts();
     loadSalesHistory();
     loadRoomsAndReservations();
-  }, [loadProducts, loadSalesHistory, loadRoomsAndReservations]);
+    loadOpenTables();
+  }, [loadProducts, loadSalesHistory, loadRoomsAndReservations, loadOpenTables]);
 
   const getOccupiedRoomsWithGuests = () => {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -113,6 +139,44 @@ export default function PosPage() {
     }).filter(Boolean) as CartItem[]);
   };
 
+  const handlePauseTable = (tableName: string) => {
+    const existingIndex = openTables.findIndex(t => t.tableName.toLowerCase() === tableName.toLowerCase() || (activeTableId && t.id === activeTableId));
+    const updatedTable: OpenTable = {
+      id: activeTableId || `table_${Date.now()}`,
+      tableName,
+      cart: [...cart],
+      paymentMethod,
+      notes,
+      createdAt: new Date().toISOString()
+    };
+
+    let newTablesList: OpenTable[];
+    if (existingIndex >= 0) {
+      newTablesList = [...openTables];
+      newTablesList[existingIndex] = updatedTable;
+    } else {
+      newTablesList = [...openTables, updatedTable];
+    }
+
+    syncOpenTables(newTablesList);
+    setCart([]);
+    setNotes('');
+    setActiveTableId(null);
+    toast.success(`Cuenta de ${tableName} pausada correctamente.`);
+  };
+
+  const handleRestoreTable = (table: OpenTable) => {
+    setCart(table.cart);
+    setPaymentMethod(table.paymentMethod);
+    setNotes(table.notes);
+    setActiveTableId(table.id);
+
+    // Remove restored table from open list until re-paused or paid
+    const remaining = openTables.filter(t => t.id !== table.id);
+    syncOpenTables(remaining);
+    toast.success(`Cuenta de ${table.tableName} cargada en caja.`);
+  };
+
   const subtotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
   const fee = paymentMethod === 'Tarjeta' ? subtotal * 0.05 : 0;
   const total = subtotal + fee;
@@ -142,6 +206,13 @@ export default function PosPage() {
           notes: fullNotes || "Consumo general en Restaurante/Bar"
         })
       });
+
+      // If completing an active open table, clean it up from openTables
+      if (activeTableId) {
+        const remaining = openTables.filter(t => t.id !== activeTableId);
+        syncOpenTables(remaining);
+        setActiveTableId(null);
+      }
 
       toast.success('¡Pedido cobrado con éxito!');
       setLastCompletedSale({ ...newSale, items: cart, total, fee, subtotal });
@@ -240,7 +311,22 @@ export default function PosPage() {
             <PosProductList products={products} loading={loading} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} searchQuery={searchQuery} setSearchQuery={setSearchQuery} addToCart={addToCart} onDeleteProduct={handleDeleteProduct} categories={categories} filteredProducts={filteredProducts} />
           </div>
           <div className={`lg:col-span-5 xl:col-span-4 flex flex-col lg:h-full ${mobileView === 'cart' ? 'block' : 'hidden lg:flex'}`}>
-            <PosCart cart={cart} updateQuantity={updateQuantity} paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod} notes={notes} setNotes={setNotes} subtotal={subtotal} fee={fee} total={total} occupiedRooms={getOccupiedRoomsWithGuests()} onCompleteOrder={handleCompleteOrder} />
+            <PosCart
+              cart={cart}
+              updateQuantity={updateQuantity}
+              paymentMethod={paymentMethod}
+              setPaymentMethod={setPaymentMethod}
+              notes={notes}
+              setNotes={setNotes}
+              subtotal={subtotal}
+              fee={fee}
+              total={total}
+              occupiedRooms={getOccupiedRoomsWithGuests()}
+              onCompleteOrder={handleCompleteOrder}
+              openTables={openTables}
+              onPauseTable={handlePauseTable}
+              onRestoreTable={handleRestoreTable}
+            />
           </div>
         </div>
       ) : (

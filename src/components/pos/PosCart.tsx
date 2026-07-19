@@ -1,7 +1,17 @@
 "use client";
-import React from 'react';
-import { ShoppingBag, Minus, Plus, Wallet, CreditCard, User } from 'lucide-react';
+import React, { useState } from 'react';
+import { ShoppingBag, Minus, Plus, Wallet, CreditCard, User, PauseCircle, UtensilsCrossed, Play } from 'lucide-react';
 import type { CartItem } from '@/types';
+import { toast } from '@/components/Toast';
+
+export interface OpenTable {
+  id: string;
+  tableName: string;
+  cart: CartItem[];
+  paymentMethod: 'Efectivo' | 'Tarjeta' | 'Habitación';
+  notes: string;
+  createdAt: string;
+}
 
 interface Props {
   cart: CartItem[];
@@ -15,6 +25,11 @@ interface Props {
   total: number;
   occupiedRooms: { id: string; name: string; guestName: string }[];
   onCompleteOrder: () => void;
+
+  // Open tables management
+  openTables: OpenTable[];
+  onPauseTable: (tableName: string) => void;
+  onRestoreTable: (table: OpenTable) => void;
 }
 
 export default function PosCart({
@@ -29,9 +44,31 @@ export default function PosCart({
   total,
   occupiedRooms,
   onCompleteOrder,
+  openTables = [],
+  onPauseTable,
+  onRestoreTable,
 }: Props) {
+  const [selectedTable, setSelectedTable] = useState('Mesa 1');
+  const [customTableName, setCustomTableName] = useState('');
+
+  const defaultTables = ['Mesa 1', 'Mesa 2', 'Mesa 3', 'Mesa 4', 'Terraza 1', 'Terraza 2', 'Bar 1', 'Bar 2'];
+
+  const handlePauseClick = () => {
+    const tableToUse = selectedTable === 'Otra' ? customTableName.trim() : selectedTable;
+    if (!tableToUse) {
+      toast.error('Especifica un número o nombre de mesa para pausar la cuenta.');
+      return;
+    }
+    if (cart.length === 0) {
+      toast.error('Agrega al menos un producto a la cuenta antes de pausarla.');
+      return;
+    }
+    onPauseTable(tableToUse);
+  };
+
   return (
-    <div className="bg-[#2D2D2D] text-white rounded-3xl p-4 md:p-5 shadow-2xl flex flex-col lg:h-full border border-[#3D3D3D] overflow-hidden">
+    <div className="bg-[#2D2D2D] text-white rounded-3xl p-4 md:p-5 shadow-2xl flex flex-col lg:h-full border border-[#3D3D3D] overflow-hidden text-left">
+      {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-[#3D3D3D] mb-3 shrink-0">
         <div className="flex items-center gap-2.5">
           <ShoppingBag className="text-[#A68A64]" size={18} />
@@ -41,6 +78,35 @@ export default function PosCart({
           {cart.reduce((sum, item) => sum + item.quantity, 0)} Items
         </span>
       </div>
+
+      {/* Open Tables Bar */}
+      {openTables.length > 0 && (
+        <div className="mb-3 p-2.5 bg-[#383838] rounded-2xl border border-[#484848] shrink-0">
+          <div className="flex items-center gap-2 mb-2 text-[#A68A64]">
+            <UtensilsCrossed size={12} />
+            <span className="text-[9px] font-bold uppercase tracking-widest text-[#8C8C8C]">
+              Cuentas Pausadas ({openTables.length})
+            </span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+            {openTables.map(t => {
+              const tableTotal = t.cart.reduce((sum, i) => sum + (i.product.price * i.quantity), 0);
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => onRestoreTable(t)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-[#2D2D2D] hover:bg-[#A68A64] text-white border border-[#4D4D4D] hover:border-[#A68A64] rounded-xl text-[10px] font-bold transition-all shrink-0 active:scale-95 group"
+                  title="Haz clic para reabrir esta mesa y agregar productos o cobrar"
+                >
+                  <span className="text-[#A68A64] group-hover:text-white font-extrabold">{t.tableName}</span>
+                  <span className="text-[#8C8C8C] group-hover:text-white/80">${tableTotal.toLocaleString()}</span>
+                  <Play size={10} className="fill-current text-[#A68A64] group-hover:text-white ml-0.5" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Items List */}
       <div className="flex-grow overflow-y-auto space-y-2 pr-1 mb-3 no-scrollbar">
@@ -78,8 +144,43 @@ export default function PosCart({
         )}
       </div>
 
-      {/* Payment Settings & Notes */}
+      {/* Table & Payment Settings */}
       <div className="space-y-3 border-t border-[#3D3D3D] pt-3 mb-3 shrink-0">
+        {/* Mesa Selector & Pausar Button */}
+        <div>
+          <label className="text-[9px] font-bold uppercase tracking-widest text-[#8C8C8C] mb-1.5 block">
+            Asignación de Mesa
+          </label>
+          <div className="flex gap-2">
+            <select
+              value={selectedTable}
+              onChange={e => setSelectedTable(e.target.value)}
+              className="flex-1 bg-[#383838] border border-[#484848] rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-[#A68A64] text-white"
+            >
+              {defaultTables.map(t => <option key={t} value={t} className="bg-[#2D2D2D]">{t}</option>)}
+              <option value="Otra" className="bg-[#2D2D2D]">Otra Mesa...</option>
+            </select>
+            {selectedTable === 'Otra' && (
+              <input
+                type="text"
+                placeholder="Nombre/Mesa"
+                value={customTableName}
+                onChange={e => setCustomTableName(e.target.value)}
+                className="w-24 bg-[#383838] border border-[#484848] rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-[#A68A64] text-white"
+              />
+            )}
+            <button
+              onClick={handlePauseClick}
+              disabled={cart.length === 0}
+              className="px-3 py-1.5 bg-[#383838] hover:bg-[#A68A64] disabled:opacity-40 text-[#A68A64] hover:text-white border border-[#484848] rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1 shrink-0"
+              title="Guardar cuenta abierta para agregar más productos después"
+            >
+              <PauseCircle size={14} /> Pausar Cuenta
+            </button>
+          </div>
+        </div>
+
+        {/* Payment Method */}
         <div>
           <label className="text-[9px] font-bold uppercase tracking-widest text-[#8C8C8C] mb-1.5 block">Método de Pago</label>
           <div className="grid grid-cols-3 gap-1.5">
@@ -105,7 +206,7 @@ export default function PosCart({
 
         <div>
           <label className="text-[9px] font-bold uppercase tracking-widest text-[#8C8C8C] mb-1 block">
-            {paymentMethod === 'Habitación' ? 'Habitación Ocupada *' : 'Notas del Consumo / Mesa'}
+            {paymentMethod === 'Habitación' ? 'Habitación Ocupada *' : 'Notas Adicionales'}
           </label>
           {paymentMethod === 'Habitación' ? (
             <select
@@ -124,7 +225,7 @@ export default function PosCart({
           ) : (
             <input
               type="text"
-              placeholder="Ej. Mesa 3 o Para llevar"
+              placeholder="Ej. Sin cebolla, extra hielo, etc."
               value={notes}
               onChange={e => setNotes(e.target.value)}
               className="w-full bg-[#383838] border border-[#484848] rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-[#A68A64] text-white placeholder-[#8C8C8C]"

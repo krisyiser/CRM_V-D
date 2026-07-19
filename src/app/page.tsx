@@ -3,10 +3,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BedDouble, CalendarCheck, Users, DollarSign, Loader2, Sparkles, Plus } from 'lucide-react';
 import { apiFetch, API } from '@/lib/api';
-import type { Room, Reservation } from '@/types';
+import type { Room, Reservation, RoomCharge } from '@/types';
 import RoomDetailPanel from '@/components/dashboard/RoomDetailPanel';
 import GuestRegistrationModal from '@/components/dashboard/GuestRegistrationModal';
 import CheckoutModal from '@/components/dashboard/CheckoutModal';
+import StayReportModal from '@/components/dashboard/StayReportModal';
 
 export default function DashboardPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -21,6 +22,10 @@ export default function DashboardPage() {
 
   const [showCheckout, setShowCheckout] = useState(false);
   const [checkoutRoom, setCheckoutRoom] = useState<Room | null>(null);
+
+  // Stay Report Modal state
+  const [checkoutChargeRecord, setCheckoutChargeRecord] = useState<RoomCharge | null>(null);
+  const [showStayReportModal, setShowStayReportModal] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -197,9 +202,26 @@ export default function DashboardPage() {
           roomId={checkoutRoom.id}
           roomName={checkoutRoom.name}
           currentReservation={reservations.find(r => r.room_id === checkoutRoom.id) || null}
-          onSuccess={fetchData}
+          onSuccess={(createdCharge) => {
+            fetchData();
+            if (createdCharge) {
+              setCheckoutChargeRecord(createdCharge);
+              setShowStayReportModal(true);
+            }
+          }}
         />
       )}
+
+      {/* Immediate Stay Report Modal for billing/invoicing */}
+      <StayReportModal
+        isOpen={showStayReportModal}
+        onClose={() => {
+          setShowStayReportModal(false);
+          setCheckoutChargeRecord(null);
+        }}
+        guestName={checkoutChargeRecord ? checkoutChargeRecord.guest_name : ''}
+        chargeRecord={checkoutChargeRecord}
+      />
     </div>
   );
 }

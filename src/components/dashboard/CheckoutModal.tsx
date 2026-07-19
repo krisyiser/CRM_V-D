@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, LogOut } from 'lucide-react';
 import { API, apiFetch } from '@/lib/api';
-import type { Room, Reservation, PosSale } from '@/types';
+import type { Room, Reservation, PosSale, RoomCharge } from '@/types';
 import { toast } from '@/components/Toast';
 import SatisfactionSurvey from './SatisfactionSurvey';
 import BillingSummary from './BillingSummary';
@@ -14,7 +14,7 @@ interface Props {
   roomId: string;
   roomName: string;
   currentReservation: Reservation | null;
-  onSuccess: () => void;
+  onSuccess: (chargeRecord?: RoomCharge) => void;
 }
 
 export default function CheckoutModal({ isOpen, onClose, roomId, roomName, currentReservation, onSuccess }: Props) {
@@ -146,6 +146,7 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
 
   const handleSubmitCheckout = async () => {
     setSubmitting(true);
+    let createdCharge: RoomCharge | undefined;
     try {
       const guestName = currentReservation?.guest_name || 'Huésped';
       const fullFeedbackData = {
@@ -175,7 +176,7 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
           checkoutPaid: chargesPaid
         };
 
-        await apiFetch(API.roomCharges, {
+        createdCharge = await apiFetch<RoomCharge>(API.roomCharges, {
           method: 'POST',
           body: JSON.stringify({ room_id: roomId, guest_name: guestName, items_json: JSON.stringify(stayReport), total: grandTotal })
         });
@@ -188,7 +189,7 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
       }
 
       toast.success(`Check-out de la Suite ${roomId} completado con éxito.`);
-      onSuccess();
+      onSuccess(createdCharge);
       onClose();
     } catch (error: any) {
       toast.error('Error al realizar el Check-out: ' + (error.message || JSON.stringify(error)));

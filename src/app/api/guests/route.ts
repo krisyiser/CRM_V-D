@@ -4,7 +4,8 @@ import type { Guest } from '@/types';
 
 export async function GET() {
   const guests = await readJson<Guest[]>('guests.json', []);
-  return NextResponse.json(guests);
+  const sorted = [...guests].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+  return NextResponse.json(sorted);
 }
 
 export async function POST(request: Request) {
@@ -32,7 +33,8 @@ export async function POST(request: Request) {
       created_at: new Date().toISOString(),
     };
 
-    guests.push(newGuest);
+    // Unshift to put newest guest at the very top
+    guests.unshift(newGuest);
     await writeJson('guests.json', guests);
 
     return NextResponse.json(newGuest);
