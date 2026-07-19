@@ -1,18 +1,19 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Coffee, Clock, Plus, X, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Coffee, Clock, Plus, X, CheckCircle2, AlertTriangle, Utensils, Grid } from 'lucide-react';
 import { apiFetch, API } from '@/lib/api';
 import { toast } from '@/components/Toast';
 import type { Product, CartItem, PosSale, Room, Reservation } from '@/types';
 import PosProductList from '@/components/pos/PosProductList';
 import PosCart, { OpenTable } from '@/components/pos/PosCart';
+import PosTableGrid from '@/components/pos/PosTableGrid';
 import PosSalesHistory from '@/components/pos/PosSalesHistory';
 
 export default function PosPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [salesHistory, setSalesHistory] = useState<PosSale[]>([]);
-  const [activeTab, setActiveTab] = useState<'pos' | 'history'>('pos');
+  const [activeTab, setActiveTab] = useState<'menu' | 'tables' | 'history'>('menu');
   const [mobileView, setMobileView] = useState<'menu' | 'cart'>('menu');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todas');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -21,9 +22,10 @@ export default function PosPage() {
   const [notes, setNotes] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
-  // Open tables state
-  const [openTables, setOpenTables] = useState<OpenTable[]>([]);
+  // Active Table selection for Tablet
+  const [activeTableName, setActiveTableName] = useState<string>('Mesa 1');
   const [activeTableId, setActiveTableId] = useState<string | null>(null);
+  const [openTables, setOpenTables] = useState<OpenTable[]>([]);
 
   // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -126,7 +128,7 @@ export default function PosPage() {
       }
       return [...prev, { product, quantity: 1 }];
     });
-    toast.success(`${product.name} agregado a la cuenta`);
+    toast.success(`${product.name} agregado a ${activeTableName || 'Mesa 1'}`);
   };
 
   const updateQuantity = (productId: string, delta: number) => {
@@ -139,11 +141,52 @@ export default function PosPage() {
     }).filter(Boolean) as CartItem[]);
   };
 
-  const handlePauseTable = (tableName: string) => {
-    const existingIndex = openTables.findIndex(t => t.tableName.toLowerCase() === tableName.toLowerCase() || (activeTableId && t.id === activeTableId));
+  const handleSelectTableFromGrid = (tableName: string, existingOpenTable?: OpenTable) => {
+    // Save current cart if switching table and current cart is non-empty
+    if (cart.length > 0 && activeTableName && activeTableName.toLowerCase() !== tableName.toLowerCase()) {
+      const existingIndex = openTables.findIndex(t => t.tableName.toLowerCase() === activeTableName.toLowerCase());
+      const currentTableRecord: OpenTable = {
+        id: activeTableId || `table_${Date.now()}`,
+        tableName: activeTableName,
+        cart: [...cart],
+        paymentMethod,
+        notes,
+        createdAt: new Date().toISOString()
+      };
+      let newTables = [...openTables];
+      if (existingIndex >= 0) newTables[existingIndex] = currentTableRecord;
+      else newTables.push(currentTableRecord);
+      syncOpenTables(newTables);
+    }
+
+    setActiveTableName(tableName);
+
+    if (existingOpenTable) {
+      setCart(existingOpenTable.cart);
+      setPaymentMethod(existingOpenTable.paymentMethod);
+      setNotes(existingOpenTable.notes);
+      setActiveTableId(existingOpenTable.id);
+      // Remove from open tables array while active in cart
+      const remaining = openTables.filter(t => t.id !== existingOpenTable.id);
+      syncOpenTables(remaining);
+      toast.success(`Cuenta de ${tableName} cargada en comanda.`);
+    } else {
+      setCart([]);
+      setNotes('');
+      setActiveTableId(null);
+      toast.success(`Atendiendo ${tableName}`);
+    }
+
+    setActiveTab('menu');
+  };
+
+  const handlePauseTable = () => {
+    if (cart.length === 0) return toast.error('Agrega productos antes de pausar la mesa.');
+    const targetName = activeTableName || 'Mesa 1';
+    const existingIndex = openTables.findIndex(t => t.tableName.toLowerCase() === targetName.toLowerCase() || (activeTableId && t.id === activeTableId));
     const updatedTable: OpenTable = {
       id: activeTableId || `table_${Date.now()}`,
-      tableName,
+      tableName: targetName,
       cart: [...cart],
       paymentMethod,
       notes,
@@ -162,19 +205,7 @@ export default function PosPage() {
     setCart([]);
     setNotes('');
     setActiveTableId(null);
-    toast.success(`Cuenta de ${tableName} pausada correctamente.`);
-  };
-
-  const handleRestoreTable = (table: OpenTable) => {
-    setCart(table.cart);
-    setPaymentMethod(table.paymentMethod);
-    setNotes(table.notes);
-    setActiveTableId(table.id);
-
-    // Remove restored table from open list until re-paused or paid
-    const remaining = openTables.filter(t => t.id !== table.id);
-    syncOpenTables(remaining);
-    toast.success(`Cuenta de ${table.tableName} cargada en caja.`);
+    toast.success(`Cuenta de ${targetName} pausada correctamente.`);
   };
 
   const subtotal = cart.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
@@ -195,7 +226,9 @@ export default function PosPage() {
         price: item.product.price,
         quantity: item.quantity
       })));
-      const fullNotes = paymentMethod === 'Habitación' ? `Cargo a Habitación / Huesped: ${notes}` : notes;
+      const fullNotes = paymentMethod === 'Habitación' 
+        ? `Cargo a Habitación / Huésped: ${notes} (Mesa: ${activeTableName})` 
+        : `${activeTableName} &mdash; ${notes || 'Consumo en Restaurante'}`;
 
       const newSale = await apiFetch<PosSale>(API.posSales, {
         method: 'POST',
@@ -203,19 +236,19 @@ export default function PosPage() {
           items_json,
           total: Number(total.toFixed(2)),
           payment_method: paymentMethod,
-          notes: fullNotes || "Consumo general en Restaurante/Bar"
+          notes: fullNotes
         })
       });
 
-      // If completing an active open table, clean it up from openTables
-      if (activeTableId) {
-        const remaining = openTables.filter(t => t.id !== activeTableId);
+      // Clear open table record if exists
+      if (activeTableId || activeTableName) {
+        const remaining = openTables.filter(t => t.id !== activeTableId && t.tableName.toLowerCase() !== activeTableName.toLowerCase());
         syncOpenTables(remaining);
         setActiveTableId(null);
       }
 
-      toast.success('¡Pedido cobrado con éxito!');
-      setLastCompletedSale({ ...newSale, items: cart, total, fee, subtotal });
+      toast.success(`¡Pedido de ${activeTableName} cobrado con éxito!`);
+      setLastCompletedSale({ ...newSale, items: cart, total, fee, subtotal, tableName: activeTableName });
       setCart([]);
       setNotes('');
       loadSalesHistory();
@@ -281,34 +314,82 @@ export default function PosPage() {
 
   return (
     <div className="min-h-screen lg:min-h-0 lg:h-full bg-[#F9F7F2] text-[#2D2D2D] p-4 sm:p-6 lg:p-0 font-sans selection:bg-[#A68A64] selection:text-white text-left lg:overflow-hidden flex flex-col">
-      {/* Top Bar */}
+      {/* Top Bar for Tablet POS */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-3 border-b border-[#E8E4D9] shrink-0">
         <div>
           <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-[#A68A64] mb-1.5">
             <Coffee size={16} /> Restaurante & Café Bar
           </div>
-          <h1 className="text-2xl md:text-3xl font-serif text-[#1C1C1C]">Punto de Venta Boutique</h1>
+          <h1 className="text-2xl md:text-3xl font-serif text-[#1C1C1C]">Punto de Venta Tablet POS</h1>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="bg-[#E8E4D9]/60 p-1 rounded-2xl flex items-center gap-1">
-            <button onClick={() => setActiveTab('pos')} className={`px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all ${activeTab === 'pos' ? 'bg-[#2D2D2D] text-white shadow-lg' : 'text-[#6B6B6B]'}`}>Caja</button>
-            <button onClick={() => setActiveTab('history')} className={`px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${activeTab === 'history' ? 'bg-[#2D2D2D] text-white shadow-lg' : 'text-[#6B6B6B]'}`}><Clock size={14} /> Historial ({salesHistory.length})</button>
+        <div className="flex items-center gap-3">
+          <div className="bg-[#E8E4D9]/60 p-1.5 rounded-2xl flex items-center gap-1.5 shadow-inner">
+            <button
+              onClick={() => setActiveTab('menu')}
+              className={`px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
+                activeTab === 'menu' ? 'bg-[#2D2D2D] text-white shadow-md' : 'text-[#6B6B6B] hover:text-[#2D2D2D]'
+              }`}
+            >
+              <Utensils size={14} /> Menú & Comanda
+            </button>
+
+            <button
+              onClick={() => setActiveTab('tables')}
+              className={`px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 relative ${
+                activeTab === 'tables' ? 'bg-[#2D2D2D] text-white shadow-md' : 'text-[#6B6B6B] hover:text-[#2D2D2D]'
+              }`}
+            >
+              <Grid size={14} /> Mapa de Mesas
+              {openTables.length > 0 && (
+                <span className="w-5 h-5 bg-[#A68A64] text-white rounded-full text-[10px] font-extrabold flex items-center justify-center">
+                  {openTables.length}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
+                activeTab === 'history' ? 'bg-[#2D2D2D] text-white shadow-md' : 'text-[#6B6B6B] hover:text-[#2D2D2D]'
+              }`}
+            >
+              <Clock size={14} /> Historial ({salesHistory.length})
+            </button>
           </div>
-          <button onClick={() => setIsModalOpen(true)} className="px-6 py-3 bg-[#A68A64] hover:bg-[#8F7553] text-white rounded-2xl font-bold text-xs uppercase tracking-widest transition-all shadow-md flex items-center gap-2"><Plus size={16} /> Nuevo Producto</button>
+
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="px-4 py-2.5 bg-[#A68A64] hover:bg-[#8F7553] text-white rounded-2xl font-bold text-xs uppercase tracking-widest transition-all shadow-md flex items-center gap-1.5 shrink-0"
+          >
+            <Plus size={16} /> Producto
+          </button>
         </div>
       </div>
 
-      {activeTab === 'pos' && (
+      {/* Mobile view selector */}
+      {activeTab === 'menu' && (
         <div className="flex lg:hidden bg-[#E8E4D9]/60 p-1 rounded-2xl mb-4 sticky top-2 z-30">
           <button onClick={() => setMobileView('menu')} className={`flex-1 py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all ${mobileView === 'menu' ? 'bg-[#2D2D2D] text-white' : 'text-[#6B6B6B]'}`}>Menú</button>
           <button onClick={() => setMobileView('cart')} className={`flex-1 py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all ${mobileView === 'cart' ? 'bg-[#2D2D2D] text-white' : 'text-[#6B6B6B]'}`}>Carrito ({cart.reduce((sum, item) => sum + item.quantity, 0)})</button>
         </div>
       )}
 
-      {activeTab === 'pos' ? (
+      {/* Main Content Area */}
+      {activeTab === 'menu' ? (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow min-h-0 lg:overflow-hidden">
           <div className={`lg:col-span-7 xl:col-span-8 flex flex-col lg:h-full lg:overflow-hidden ${mobileView === 'menu' ? 'block' : 'hidden lg:flex'}`}>
-            <PosProductList products={products} loading={loading} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} searchQuery={searchQuery} setSearchQuery={setSearchQuery} addToCart={addToCart} onDeleteProduct={handleDeleteProduct} categories={categories} filteredProducts={filteredProducts} />
+            <PosProductList
+              products={products}
+              loading={loading}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              addToCart={addToCart}
+              onDeleteProduct={handleDeleteProduct}
+              categories={categories}
+              filteredProducts={filteredProducts}
+            />
           </div>
           <div className={`lg:col-span-5 xl:col-span-4 flex flex-col lg:h-full ${mobileView === 'cart' ? 'block' : 'hidden lg:flex'}`}>
             <PosCart
@@ -323,11 +404,20 @@ export default function PosPage() {
               total={total}
               occupiedRooms={getOccupiedRoomsWithGuests()}
               onCompleteOrder={handleCompleteOrder}
-              openTables={openTables}
+              activeTableName={activeTableName}
+              onOpenTableGrid={() => setActiveTab('tables')}
               onPauseTable={handlePauseTable}
-              onRestoreTable={handleRestoreTable}
             />
           </div>
+        </div>
+      ) : activeTab === 'tables' ? (
+        <div className="flex-grow overflow-y-auto pr-1 pb-6">
+          <PosTableGrid
+            openTables={openTables}
+            activeTableName={activeTableName}
+            onSelectTable={handleSelectTableFromGrid}
+            occupiedRooms={getOccupiedRoomsWithGuests()}
+          />
         </div>
       ) : (
         <PosSalesHistory salesHistory={salesHistory} onOpenEditSale={() => {}} onConfirmDeleteSale={(id) => setDeletingSaleId(id)} />
@@ -374,6 +464,7 @@ export default function PosPage() {
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-3xl p-8 w-full max-w-md border border-[#E8E4D9] shadow-2xl text-center">
               <div className="w-12 h-12 bg-[#8E9B8E]/20 text-[#8E9B8E] rounded-full flex items-center justify-center mx-auto mb-4"><CheckCircle2 size={24} /></div>
               <h2 className="font-serif text-2xl font-bold text-[#1C1C1C] mb-1">¡Cobro Exitoso!</h2>
+              <p className="text-[10px] text-[#A68A64] font-bold uppercase tracking-widest mb-1">{lastCompletedSale.tableName}</p>
               <p className="text-[10px] text-[#8C8C8C] mb-4">Folio #{lastCompletedSale.id.substring(0, 8).toUpperCase()}</p>
               <div className="bg-[#F9F7F2] p-4 rounded-xl border border-[#E8E4D9] mb-4 text-left space-y-2 text-xs">
                 {lastCompletedSale.items.map((item: any) => (
