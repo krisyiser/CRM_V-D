@@ -5,11 +5,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, BedDouble, CalendarDays, Users,
   UtensilsCrossed, MessageSquare, Settings, Bell,
-  ChevronLeft, LogOut, Loader2
+  ChevronLeft, LogOut, Loader2, Monitor, Smartphone, Tablet
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { Notification } from '@/types';
 import { apiFetch, API } from '@/lib/api';
+import { useDeviceType } from '@/hooks/useDeviceType';
 
 interface NavItem {
   id: string;
@@ -31,12 +32,21 @@ const NAV_ITEMS: NavItem[] = [
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const device = useDeviceType();
+
   const [collapsed, setCollapsed] = useState(false);
   const [profile, setProfile] = useState({ name: '', email: '', initials: 'VD' });
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [ready, setReady] = useState(false);
+
+  // Auto-collapse sidebar on Tablet devices
+  useEffect(() => {
+    if (device.isTablet) {
+      setCollapsed(true);
+    }
+  }, [device.isTablet]);
 
   // Fetch user session
   useEffect(() => {
@@ -70,7 +80,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   const unread = notifications.filter(n => !n.read).length;
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts (active when on PC Desktop)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey) {
@@ -107,103 +117,123 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   return (
     <div className="flex h-screen bg-[#F9F7F2] overflow-hidden">
-      {/* Desktop Sidebar (hidden on mobile/tablet) */}
-      <motion.aside
-        animate={{ width: collapsed ? 80 : 280 }}
-        transition={{ type: 'spring', damping: 28, stiffness: 200 }}
-        className="hidden md:flex bg-white border-r border-[#E8E4D9] flex-col shrink-0 z-30 relative"
-      >
-        {/* Brand */}
-        <div className="p-6 border-b border-[#E8E4D9] flex items-center gap-3 min-h-[80px]">
-          <div className="w-10 h-10 rounded-2xl bg-[#A68A64] flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-[#A68A64]/20 shrink-0">
-            V&D
-          </div>
-          <AnimatePresence>
-            {!collapsed && (
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="overflow-hidden text-left"
-              >
-                <h1 className="text-sm font-semibold text-[#2D2D2D] whitespace-nowrap">Vainilla & Descanso</h1>
-                <p className="text-[9px] text-[#A68A64] font-bold uppercase tracking-widest">Lobby Concierge</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto custom-scrollbar-light">
-          {NAV_ITEMS.map(item => {
-            const active = pathname === item.path;
-            return (
-              <button
-                key={item.id}
-                onClick={() => router.push(item.path)}
-                title={collapsed ? item.label : undefined}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all active:scale-95 ${
-                  active
-                    ? 'bg-[#A68A64] text-white shadow-lg shadow-[#A68A64]/20'
-                    : 'text-[#8C8C8C] hover:bg-[#F9F7F2] hover:text-[#2D2D2D]'
-                }`}
-              >
-                <span className="shrink-0">{item.icon}</span>
-                <AnimatePresence>
-                  {!collapsed && (
-                    <motion.span
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="whitespace-nowrap"
-                    >
-                      {item.label}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Bottom Controls */}
-        <div className="p-3 border-t border-[#E8E4D9] space-y-1">
-          <button
-            onClick={() => setShowSettings(true)}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium text-[#8C8C8C] hover:bg-[#F9F7F2] hover:text-[#2D2D2D] transition-all"
-            title={collapsed ? 'Configuración' : undefined}
-          >
-            <Settings size={20} className="shrink-0" />
-            {!collapsed && <span>Configuración</span>}
-          </button>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium text-[#8C8C8C] hover:bg-red-50 hover:text-red-500 transition-all"
-            title={collapsed ? 'Cerrar Sesión' : undefined}
-          >
-            <LogOut size={20} className="shrink-0" />
-            {!collapsed && <span>Cerrar Sesión</span>}
-          </button>
-        </div>
-
-        {/* Collapse Toggle */}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border border-[#E8E4D9] rounded-full flex items-center justify-center text-[#8C8C8C] hover:text-[#2D2D2D] shadow-sm transition-colors z-40"
+      {/* Sidebar for PC Desktop & Tablet */}
+      {!device.isMobile && (
+        <motion.aside
+          animate={{ width: collapsed ? 80 : 280 }}
+          transition={{ type: 'spring', damping: 28, stiffness: 200 }}
+          className="bg-white border-r border-[#E8E4D9] flex flex-col shrink-0 z-30 relative"
         >
-          <ChevronLeft size={12} className={`transition-transform ${collapsed ? 'rotate-180' : ''}`} />
-        </button>
-      </motion.aside>
+          {/* Brand */}
+          <div className="p-6 border-b border-[#E8E4D9] flex items-center gap-3 min-h-[80px]">
+            <div className="w-10 h-10 rounded-2xl bg-[#A68A64] flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-[#A68A64]/20 shrink-0">
+              V&D
+            </div>
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  className="overflow-hidden text-left"
+                >
+                  <h1 className="text-sm font-semibold text-[#2D2D2D] whitespace-nowrap">Vainilla & Descanso</h1>
+                  <p className="text-[9px] text-[#A68A64] font-bold uppercase tracking-widest">Lobby Concierge</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto custom-scrollbar-light">
+            {NAV_ITEMS.map(item => {
+              const active = pathname === item.path;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => router.push(item.path)}
+                  title={collapsed ? item.label : undefined}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all active:scale-95 ${
+                    active
+                      ? 'bg-[#A68A64] text-white shadow-lg shadow-[#A68A64]/20'
+                      : 'text-[#8C8C8C] hover:bg-[#F9F7F2] hover:text-[#2D2D2D]'
+                  }`}
+                >
+                  <span className="shrink-0">{item.icon}</span>
+                  <AnimatePresence>
+                    {!collapsed && (
+                      <motion.span
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="whitespace-nowrap"
+                      >
+                        {item.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* Bottom Controls */}
+          <div className="p-3 border-t border-[#E8E4D9] space-y-1">
+            <button
+              onClick={() => setShowSettings(true)}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium text-[#8C8C8C] hover:bg-[#F9F7F2] hover:text-[#2D2D2D] transition-all"
+              title={collapsed ? 'Configuración' : undefined}
+            >
+              <Settings size={20} className="shrink-0" />
+              {!collapsed && <span>Configuración</span>}
+            </button>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium text-[#8C8C8C] hover:bg-red-50 hover:text-red-500 transition-all"
+              title={collapsed ? 'Cerrar Sesión' : undefined}
+            >
+              <LogOut size={20} className="shrink-0" />
+              {!collapsed && <span>Cerrar Sesión</span>}
+            </button>
+          </div>
+
+          {/* Collapse Toggle */}
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white border border-[#E8E4D9] rounded-full flex items-center justify-center text-[#8C8C8C] hover:text-[#2D2D2D] shadow-sm transition-colors z-40"
+          >
+            <ChevronLeft size={12} className={`transition-transform ${collapsed ? 'rotate-180' : ''}`} />
+          </button>
+        </motion.aside>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col overflow-hidden pb-16 md:pb-0">
-        {/* Top Header */}
+        {/* Top Header with Device Indicator Badge */}
         <header className="h-[64px] md:h-[72px] bg-white border-b border-[#E8E4D9] px-4 md:px-8 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2 md:hidden">
-            <div className="w-8 h-8 rounded-xl bg-[#A68A64] flex items-center justify-center text-white font-bold text-xs shadow-md">
-              V&D
+          <div className="flex items-center gap-2">
+            {device.isMobile && (
+              <div className="w-8 h-8 rounded-xl bg-[#A68A64] flex items-center justify-center text-white font-bold text-xs shadow-md">
+                V&D
+              </div>
+            )}
+
+            {/* Dynamic Device Mode Badge */}
+            <div className="flex items-center gap-1.5 px-3 py-1 bg-[#F9F7F2] border border-[#E8E4D9] rounded-xl text-[10px] font-bold text-[#A68A64] uppercase tracking-wider">
+              {device.isDesktop ? (
+                <>
+                  <Monitor size={12} /> Mode: PC Desktop
+                </>
+              ) : device.isTablet ? (
+                <>
+                  <Tablet size={12} /> Mode: Tablet Touch
+                </>
+              ) : (
+                <>
+                  <Smartphone size={12} /> Mode: Mobile App
+                </>
+              )}
             </div>
-            <span className="font-bold text-sm text-[#2D2D2D]">Vainilla Concierge</span>
           </div>
 
           <div className="flex items-center gap-3 ml-auto">
@@ -240,23 +270,25 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       </main>
 
       {/* Mobile & Tablet Fixed Bottom Touch Bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-[#E8E4D9] z-50 flex items-center justify-around px-2 shadow-2xl">
-        {NAV_ITEMS.map(item => {
-          const active = pathname === item.path;
-          return (
-            <button
-              key={item.id}
-              onClick={() => router.push(item.path)}
-              className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all active:scale-90 ${
-                active ? 'text-[#A68A64] font-bold' : 'text-[#8C8C8C]'
-              }`}
-            >
-              <span className={`transition-transform ${active ? 'scale-110' : ''}`}>{item.icon}</span>
-              <span className="text-[9px] font-bold tracking-tight mt-0.5">{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      {device.isMobile && (
+        <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-[#E8E4D9] z-50 flex items-center justify-around px-2 shadow-2xl">
+          {NAV_ITEMS.map(item => {
+            const active = pathname === item.path;
+            return (
+              <button
+                key={item.id}
+                onClick={() => router.push(item.path)}
+                className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all active:scale-90 ${
+                  active ? 'text-[#A68A64] font-bold' : 'text-[#8C8C8C]'
+                }`}
+              >
+                <span className={`transition-transform ${active ? 'scale-110' : ''}`}>{item.icon}</span>
+                <span className="text-[9px] font-bold tracking-tight mt-0.5">{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      )}
 
       {/* Modals & Panels */}
       {showNotifications && (
