@@ -6,16 +6,28 @@ import type { Reservation } from '@/types';
 const DATA_DIR = path.join(process.cwd(), 'data');
 
 /**
+ * Sanitizes input filename to prevent path traversal vulnerabilities.
+ */
+function sanitizeFilename(filename: string): string {
+  const safeName = path.basename(filename);
+  if (!safeName.endsWith('.json')) {
+    throw new Error('Invalid database filename target');
+  }
+  return safeName;
+}
+
+/**
  * Reads a JSON file from local data/ directory or GitHub API if configured.
  */
 export async function readJson<T>(filename: string, fallback: T): Promise<T> {
+  const safeName = sanitizeFilename(filename);
   const ghToken = process.env.GITHUB_TOKEN;
-  const ghRepo = process.env.GITHUB_REPO; // e.g. "krisyiser/CRM_V-D"
+  const ghRepo = process.env.GITHUB_REPO;
 
   // Attempt reading from GitHub API if token and repo are configured
   if (ghToken && ghRepo) {
     try {
-      const res = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${filename}`, {
+      const res = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}`, {
         headers: {
           'Authorization': `Bearer ${ghToken}`,
           'Accept': 'application/vnd.github.v3.raw',
@@ -28,13 +40,13 @@ export async function readJson<T>(filename: string, fallback: T): Promise<T> {
         return JSON.parse(text) as T;
       }
     } catch (e) {
-      console.error(`[GitHub DB] Error fetching ${filename} from GitHub API:`, e);
+      console.error(`[GitHub DB] Error fetching ${safeName} from GitHub API:`, e);
     }
   }
 
-  // Fallback to local data/ directory
+  // Fallback to local data/ directory with atomic read
   try {
-    const filePath = path.join(DATA_DIR, filename);
+    const filePath = path.join(DATA_DIR, safeName);
     const content = await fs.readFile(filePath, 'utf-8');
     return JSON.parse(content) as T;
   } catch {
@@ -43,18 +55,22 @@ export async function readJson<T>(filename: string, fallback: T): Promise<T> {
 }
 
 /**
- * Writes data to data/ directory and automatically syncs with GitHub Repository in real-time.
+ * Writes data atomically to data/ directory and automatically syncs with GitHub Repository.
  */
 export async function writeJson<T>(filename: string, data: T): Promise<void> {
+  const safeName = sanitizeFilename(filename);
   const jsonString = JSON.stringify(data, null, 2);
+  const filePath = path.join(DATA_DIR, safeName);
+  const tempPath = path.join(DATA_DIR, `${safeName}.${Date.now()}.${Math.random().toString(36).substring(2, 7)}.tmp`);
 
-  // 1. Write to local file system
+  // 1. Atomic write to local file system via temporary file + rename
   try {
-    const filePath = path.join(DATA_DIR, filename);
     await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(filePath, jsonString, 'utf-8');
+    await fs.writeFile(tempPath, jsonString, 'utf-8');
+    await fs.rename(tempPath, filePath);
   } catch (error) {
-    console.error(`Error writing to local data/${filename}:`, error);
+    console.error(`Error writing atomically to local data/${safeName}:`, error);
+    try { await fs.unlink(tempPath); } catch {}
   }
 
   // 2. Real-time background sync with GitHub Repo API if configured
@@ -64,7 +80,7 @@ export async function writeJson<T>(filename: string, data: T): Promise<void> {
   if (ghToken) {
     (async () => {
       try {
-        const metaRes = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${filename}`, {
+        const metaRes = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}`, {
           headers: {
             'Authorization': `Bearer ${ghToken}`,
             'User-Agent': 'Vainilla-CRM'
@@ -78,7 +94,7 @@ export async function writeJson<T>(filename: string, data: T): Promise<void> {
         }
 
         const contentBase64 = Buffer.from(jsonString).toString('base64');
-        await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${filename}`, {
+        await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}`, {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${ghToken}`,
@@ -86,17 +102,17 @@ export async function writeJson<T>(filename: string, data: T): Promise<void> {
             'User-Agent': 'Vainilla-CRM'
           },
           body: JSON.stringify({
-            message: `auto-sync: update data/${filename}`,
+            message: `auto-sync: update data/${safeName}`,
             content: contentBase64,
             sha
           })
         });
       } catch (err) {
-        console.error(`[GitHub DB Sync] Error committing ${filename} to GitHub:`, err);
+        console.error(`[GitHub DB Sync] Error committing ${safeName} to GitHub:`, err);
       }
     })();
   } else {
-    exec(`git add data/${filename} && git commit -m "auto-sync: update ${filename}"`, () => {});
+    exec(`git add "data/${safeName}" && git commit -m "auto-sync: update ${safeName}"`, () => {});
   }
 }
 
