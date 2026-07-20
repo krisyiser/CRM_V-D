@@ -11,7 +11,7 @@
     "id": "102",
     "name": "El Volador",
     "room_type": "Suite",
-    "status": "occupied",
+    "status": "available",
     "price": 1600,
     "image": null
   },
