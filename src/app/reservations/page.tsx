@@ -104,73 +104,81 @@ export default function ReservationsPage() {
         </div>
       </div>
 
-      <div className="bg-white rounded-[32px] border border-[#E8E4D9] shadow-sm overflow-hidden p-6">
-        <div className="grid grid-cols-7 mb-4">
-          {weekDays.map(day => (
-            <div key={day} className="text-center text-[10px] font-bold uppercase tracking-widest text-[#8C8C8C] pb-4 border-b border-[#E8E4D9]">
-              {day}
+      <div className="bg-white rounded-[24px] sm:rounded-[32px] border border-[#E8E4D9] shadow-sm overflow-hidden p-3 sm:p-6">
+        <div className="overflow-x-auto custom-scrollbar-light pb-2">
+          <div className="min-w-[620px] sm:min-w-0">
+            <div className="grid grid-cols-7 mb-3 sm:mb-4">
+              {weekDays.map(day => (
+                <div key={day} className="text-center text-[9px] sm:text-[10px] font-bold uppercase tracking-widest text-[#8C8C8C] pb-3 sm:pb-4 border-b border-[#E8E4D9]">
+                  {day}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 gap-px bg-[#E8E4D9]">
-          {blanks.map(blank => (
-            <div key={`blank-${blank}`} className="bg-[#F9F7F2] min-h-[140px] p-2" />
-          ))}
-          {days.map(day => {
-            const dayReservations = getReservationsForDay(day);
-            const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
-            const uniqueOccupied = new Set(dayReservations.map(r => r.room_id));
-            const occupiedCount = uniqueOccupied.size;
-            const isFull = occupiedCount >= totalSuitesCount;
+            <div className="grid grid-cols-7 gap-px bg-[#E8E4D9]">
+              {blanks.map(blank => (
+                <div key={`blank-${blank}`} className="bg-[#F9F7F2] min-h-[110px] sm:min-h-[140px] p-1.5 sm:p-2" />
+              ))}
+              {days.map(day => {
+                const dayReservations = getReservationsForDay(day);
+                const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
+                const uniqueOccupied = new Set(dayReservations.map(r => r.room_id));
+                const occupiedCount = uniqueOccupied.size;
+                const isFull = occupiedCount >= totalSuitesCount;
 
-            return (
-              <div key={day} className={`bg-white min-h-[140px] p-3 hover:bg-[#F9F7F2]/50 transition-colors flex flex-col justify-between ${isToday ? 'bg-[#A68A64]/5 ring-1 ring-inset ring-[#A68A64]/20' : ''}`}>
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className={`text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-[#A68A64] text-white' : 'text-[#8C8C8C]'}`}>
-                      {day}
-                    </span>
-                    {occupiedCount > 0 && (
-                      <span className={`px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider ${isFull ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-[#A68A64]/10 text-[#A68A64] border border-[#A68A64]/20'}`}>
-                        {isFull ? 'Lleno' : `${occupiedCount}/${totalSuitesCount} Hab`}
-                      </span>
+                return (
+                  <div key={day} className={`bg-white min-h-[110px] sm:min-h-[140px] p-2 sm:p-3 hover:bg-[#F9F7F2]/50 transition-colors flex flex-col justify-between ${isToday ? 'bg-[#A68A64]/5 ring-1 ring-inset ring-[#A68A64]/20' : ''}`}>
+                    <div>
+                      <div className="flex justify-between items-center mb-1.5 sm:mb-2">
+                        <span className={`text-xs sm:text-sm font-bold w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-[#A68A64] text-white' : 'text-[#8C8C8C]'}`}>
+                          {day}
+                        </span>
+                        {occupiedCount > 0 && (
+                          <span className={`px-1.5 sm:px-2 py-0.5 rounded-lg text-[8px] sm:text-[9px] font-bold uppercase tracking-wider ${isFull ? 'bg-red-500/10 text-red-500 border border-red-500/20' : 'bg-[#A68A64]/10 text-[#A68A64] border border-[#A68A64]/20'}`}>
+                            {isFull ? 'Lleno' : `${occupiedCount}/${totalSuitesCount}`}
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-1 overflow-y-auto max-h-[75px] sm:max-h-[85px] custom-scrollbar-light pr-0.5">
+                        {dayReservations.map(res => {
+                          const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                          const [checkIn, checkOut] = (res.dates || '').split(' - ');
+                          const isCheckIn = dateStr === checkIn;
+                          const isCheckOut = dateStr === checkOut;
+                          return (
+                            <div
+                              key={res.id}
+                              onClick={() => setSelectedReservation(res)}
+                              className="bg-[#A68A64]/10 border border-[#A68A64]/20 rounded-lg p-1 sm:p-1.5 flex items-center justify-between gap-1 cursor-pointer hover:bg-red-500/10 hover:border-red-400 transition-colors group"
+                            >
+                              <div className="flex items-center gap-1 overflow-hidden">
+                                <BedDouble size={9} className="text-[#A68A64] group-hover:text-red-400 shrink-0" />
+                                <span className="text-[8px] sm:text-[9px] font-bold text-[#A68A64] group-hover:text-red-400 truncate" title={res.guest_name}>
+                                  Suite {res.room_id}: {res.guest_name}
+                                </span>
+                              </div>
+                              {(isCheckIn || isCheckOut) && (
+                                <span className={`text-[7px] px-1 py-0.5 rounded uppercase font-bold shrink-0 ${isCheckIn ? 'bg-emerald-500/20 text-emerald-600' : 'bg-red-500/20 text-red-600'}`}>
+                                  {isCheckIn ? 'IN' : 'OUT'}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {occupiedCount === 0 && (
+                      <div className="text-[8px] sm:text-[9px] text-emerald-500 font-bold uppercase tracking-wider self-end opacity-60 truncate max-w-full">
+                        <span className="hidden sm:inline">Disponible</span>
+                        <span className="inline sm:hidden">Disp</span>
+                      </div>
                     )}
                   </div>
-                  <div className="space-y-1 overflow-y-auto max-h-[85px] custom-scrollbar-light pr-1">
-                    {dayReservations.map(res => {
-                      const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                      const [checkIn, checkOut] = (res.dates || '').split(' - ');
-                      const isCheckIn = dateStr === checkIn;
-                      const isCheckOut = dateStr === checkOut;
-                      return (
-                        <div
-                          key={res.id}
-                          onClick={() => setSelectedReservation(res)}
-                          className="bg-[#A68A64]/10 border border-[#A68A64]/20 rounded-lg p-1.5 flex items-center justify-between gap-1 cursor-pointer hover:bg-red-500/10 hover:border-red-400 transition-colors group"
-                        >
-                          <div className="flex items-center gap-1 overflow-hidden">
-                            <BedDouble size={10} className="text-[#A68A64] group-hover:text-red-400 shrink-0" />
-                            <span className="text-[9px] font-bold text-[#A68A64] group-hover:text-red-400 truncate" title={res.guest_name}>
-                              Suite {res.room_id}: {res.guest_name}
-                            </span>
-                          </div>
-                          {(isCheckIn || isCheckOut) && (
-                            <span className={`text-[7px] px-1 py-0.5 rounded uppercase font-bold shrink-0 ${isCheckIn ? 'bg-emerald-500/20 text-emerald-600' : 'bg-red-500/20 text-red-600'}`}>
-                              {isCheckIn ? 'IN' : 'OUT'}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-                {occupiedCount === 0 && (
-                  <div className="text-[9px] text-emerald-500 font-bold uppercase tracking-wider self-end opacity-60">Disponible</div>
-                )}
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          </div>
         </div>
+      </div>
 
         {/* Reservation Detail */}
         <ReservationDetail
@@ -180,9 +188,9 @@ export default function ReservationsPage() {
           onCancel={handleCancel}
         />
       </div>
-    </div>
   );
 }
+
 
 function ReservationDetail({ reservation, rooms, onClose, onCancel }: {
   reservation: Reservation | null;

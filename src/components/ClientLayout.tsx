@@ -135,6 +135,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   }, []);
 
 
+  // Login page renders standalone (no sidebar shell) - Render immediately with zero delay
+  if (pathname === '/login') {
+    return <>{children}</>;
+  }
+
   if (!ready) {
     return (
       <div className="min-h-screen bg-[#F9F7F2] flex items-center justify-center">
@@ -143,10 +148,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     );
   }
 
-  // Login page renders standalone (no sidebar shell)
-  if (pathname === '/login') {
-    return <>{children}</>;
-  }
 
   return (
     <div className="flex h-screen bg-[#F9F7F2] overflow-hidden">
@@ -300,31 +301,32 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar-light">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-8 pb-24 md:pb-8 custom-scrollbar-light">
           {children}
         </div>
       </main>
 
       {/* Mobile & Tablet Fixed Bottom Touch Bar */}
       {device.isMobile && (
-        <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-[#E8E4D9] z-50 flex items-center justify-around px-2 shadow-2xl">
+        <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white/95 backdrop-blur-md border-t border-[#E8E4D9] z-50 flex items-center justify-around px-1 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
           {visibleNavItems.map(item => {
             const active = pathname === item.path;
             return (
               <button
                 key={item.id}
                 onClick={() => router.push(item.path)}
-                className={`flex flex-col items-center justify-center w-14 h-12 rounded-xl transition-all active:scale-90 ${
+                className={`flex flex-col items-center justify-center flex-1 h-12 rounded-xl transition-all active:scale-90 px-0.5 ${
                   active ? 'text-[#A68A64] font-bold' : 'text-[#8C8C8C]'
                 }`}
               >
                 <span className={`transition-transform ${active ? 'scale-110' : ''}`}>{item.icon}</span>
-                <span className="text-[9px] font-bold tracking-tight mt-0.5">{item.label}</span>
+                <span className="text-[8px] sm:text-[9px] font-bold tracking-tight mt-0.5 truncate max-w-full">{item.label}</span>
               </button>
             );
           })}
         </nav>
       )}
+
 
 
       {/* Modals & Panels */}

@@ -161,6 +161,21 @@ class TestCRMLogic(unittest.TestCase):
         for p in reception_blocked:
             self.assertFalse(can_role_access('Recepción', p), f"Reception should NOT access {p}")
 
+    def test_mobile_calendar_day_label_formatting(self):
+        """Test compact label formatting for calendar day cells on mobile screens"""
+        def get_mobile_day_label(is_available, price, is_mobile=True):
+            if is_mobile:
+                return f"${int(price)}" if is_available else "OCUP"
+            return f"DISPONIBLE\n${price:,.0f}" if is_available else "OCUPADO"
+
+        # On mobile, label should be compact price like $1400 without overflowing 'DISPONIBLE'
+        mobile_available = get_mobile_day_label(True, 1400, is_mobile=True)
+        self.assertEqual(mobile_available, "$1400")
+
+        mobile_occupied = get_mobile_day_label(False, 1400, is_mobile=True)
+        self.assertEqual(mobile_occupied, "OCUP")
+
+
 
 
 

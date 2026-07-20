@@ -322,26 +322,26 @@ export default function PosPage() {
           </div>
           <h1 className="text-xl md:text-2xl font-serif text-[#1C1C1C]">Punto de Venta Tablet POS</h1>
         </div>
-        <div className="flex items-center gap-2.5">
-          <div className="bg-[#E8E4D9]/60 p-1.5 rounded-2xl flex items-center gap-1.5 shadow-inner">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar w-full md:w-auto pb-1 md:pb-0 shrink-0">
+          <div className="bg-[#E8E4D9]/60 p-1 rounded-2xl flex items-center gap-1 shadow-inner shrink-0">
             <button
               onClick={() => setActiveTab('menu')}
-              className={`px-3 py-2 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+              className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl font-bold text-[10px] sm:text-xs uppercase tracking-wider transition-all flex items-center gap-1 whitespace-nowrap ${
                 activeTab === 'menu' ? 'bg-[#2D2D2D] text-white shadow-md' : 'text-[#6B6B6B] hover:text-[#2D2D2D]'
               }`}
             >
-              <Utensils size={14} /> Menú & Comanda
+              <Utensils size={13} /> Menú & Comanda
             </button>
 
             <button
               onClick={() => setActiveTab('tables')}
-              className={`px-3 py-2 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 relative ${
+              className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl font-bold text-[10px] sm:text-xs uppercase tracking-wider transition-all flex items-center gap-1 relative whitespace-nowrap ${
                 activeTab === 'tables' ? 'bg-[#2D2D2D] text-white shadow-md' : 'text-[#6B6B6B] hover:text-[#2D2D2D]'
               }`}
             >
-              <Grid size={14} /> Mapa de Mesas
+              <Grid size={13} /> Mapa de Mesas
               {openTables.length > 0 && (
-                <span className="w-5 h-5 bg-[#A68A64] text-white rounded-full text-[10px] font-extrabold flex items-center justify-center">
+                <span className="w-4 h-4 sm:w-5 sm:h-5 bg-[#A68A64] text-white rounded-full text-[9px] sm:text-[10px] font-extrabold flex items-center justify-center">
                   {openTables.length}
                 </span>
               )}
@@ -349,22 +349,23 @@ export default function PosPage() {
 
             <button
               onClick={() => setActiveTab('history')}
-              className={`px-3 py-2 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+              className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl font-bold text-[10px] sm:text-xs uppercase tracking-wider transition-all flex items-center gap-1 whitespace-nowrap ${
                 activeTab === 'history' ? 'bg-[#2D2D2D] text-white shadow-md' : 'text-[#6B6B6B] hover:text-[#2D2D2D]'
               }`}
             >
-              <Clock size={14} /> Historial ({salesHistory.length})
+              <Clock size={13} /> Historial ({salesHistory.length})
             </button>
           </div>
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-3.5 py-2 bg-[#A68A64] hover:bg-[#8F7553] text-white rounded-2xl font-bold text-xs uppercase tracking-widest transition-all shadow-md flex items-center gap-1 shrink-0"
+            className="px-3 py-1.5 sm:py-2 bg-[#A68A64] hover:bg-[#8F7553] text-white rounded-xl sm:rounded-2xl font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-all shadow-md flex items-center gap-1 shrink-0 whitespace-nowrap"
           >
-            <Plus size={15} /> Producto
+            <Plus size={14} /> Producto
           </button>
         </div>
       </div>
+
 
       {/* Mobile view selector */}
       {activeTab === 'menu' && (
