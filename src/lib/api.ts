@@ -9,16 +9,19 @@ export class ApiError extends Error {
 
 /**
  * Fetch wrapper for all CRM API endpoints.
- * Hits Next.js Route Handlers at /api/{endpoint}.
+ * Hits Next.js Route Handlers at /api/{endpoint} with cache: 'no-store' to guarantee fresh data.
  */
 export async function apiFetch<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
   const res = await fetch(`/api/${endpoint}`, {
+    cache: 'no-store',
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
       ...options?.headers,
     },
   });
