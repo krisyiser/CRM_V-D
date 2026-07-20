@@ -8,6 +8,37 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
 };
 
+const VALID_ROOM_IDS = ['101', '102', '103', '104', '105'];
+
+function normalizeRoomId(input: any): string {
+  const str = String(input || '').trim().toLowerCase();
+  if (VALID_ROOM_IDS.includes(str)) return str;
+
+  const MAPPINGS: Record<string, string> = {
+    '201': '101',
+    '202': '102',
+    '203': '103',
+    '204': '104',
+    '205': '105',
+    '1': '101',
+    '2': '102',
+    '3': '103',
+    '4': '104',
+    '5': '105',
+    'moros': '101',
+    'volador': '102',
+    'guagua': '103',
+    'negritos': '104',
+    'santiagueros': '105',
+  };
+
+  for (const [key, val] of Object.entries(MAPPINGS)) {
+    if (str.includes(key)) return val;
+  }
+
+  return '101';
+}
+
 function checkApiKey(request: Request, bodyApiKey?: string): boolean {
   const configuredKey = process.env.WEBSITE_API_KEY || process.env.CRM_API_KEY || 'vd_crm_secret_key_2026';
   
@@ -68,7 +99,9 @@ export async function POST(request: Request) {
 
     const email = body.email || body.guest_email || null;
     const phone = body.phone || body.guest_phone || null;
-    const roomId = String(body.room_id || body.roomId || '101');
+    const rawRoomId = body.room_id || body.roomId || body.suite_id || '101';
+    const roomId = normalizeRoomId(rawRoomId);
+
     const totalPrice = Number(body.total_price || body.totalPrice || body.total) || 0;
     const notes = body.notes || body.comment || null;
     const paymentStatus = body.payment_status || body.paymentStatus || 'paid';
@@ -106,7 +139,6 @@ export async function POST(request: Request) {
     let reservations = await readJson<Reservation[]>('reservations.json', []);
     if (!Array.isArray(reservations)) reservations = [];
 
-    // Deduplication check
     const existingIndex = reservations.findIndex(r => 
       r && (r.id === externalId || r.external_id === externalId)
     );
