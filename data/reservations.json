@@ -883,20 +883,5 @@
     "status": "Confirmed",
     "external_id": null,
     "created_at": "2026-07-20T06:50:33.668Z"
-  },
-  {
-    "id": "test_sync_1784530265",
-    "room_id": "101",
-    "guest_id": null,
-    "guest_name": "GuestSync_1784530265",
-    "check_in": "2026-07-28",
-    "check_out": "2026-07-29",
-    "dates": "2026-07-28 - 2026-07-29",
-    "total_price": 2500,
-    "notes": null,
-    "payment_status": "paid",
-    "status": "Confirmed",
-    "external_id": null,
-    "created_at": "2026-07-20T06:51:05.586Z"
   }
 ]
