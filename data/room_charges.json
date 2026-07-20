@@ -1,5 +1,13 @@
 [
   {
+    "id": "rc_1784510957395",
+    "room_id": "102",
+    "guest_name": "Familia Mendoza",
+    "items_json": "[{\"desc\":\"Estancia Suite 102 (1 Noche)\",\"amount\":1950},{\"desc\":\"Restaurante POS Mesa 2\",\"amount\":260}]",
+    "total": 2210,
+    "created_at": "2026-07-20T01:29:17.395Z"
+  },
+  {
     "id": "rc_1784510955035",
     "room_id": "101",
     "guest_name": "Huesped Test 1784510953",
