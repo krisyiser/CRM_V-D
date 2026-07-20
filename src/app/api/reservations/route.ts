@@ -110,8 +110,20 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const { id } = await request.json();
-    if (!id) return NextResponse.json({ error: 'id required' }, { status: 400, headers: CORS_HEADERS });
+    let id: string | null = null;
+    try {
+      const body = await request.json();
+      id = body.id || body.external_id || body.reservation_id || null;
+    } catch {
+      // Fallback to URL search parameters
+    }
+
+    if (!id) {
+      const url = new URL(request.url);
+      id = url.searchParams.get('id') || url.searchParams.get('external_id') || url.searchParams.get('reservation_id');
+    }
+
+    if (!id) return NextResponse.json({ error: 'id o external_id requerido' }, { status: 400, headers: CORS_HEADERS });
 
     const rawReservations = await readJson<Reservation[]>('reservations.json', []);
     const reservations = Array.isArray(rawReservations) ? rawReservations : [];
@@ -119,13 +131,13 @@ export async function DELETE(request: Request) {
 
     const updated = reservations.filter(r => {
       if (!r) return false;
-      const match = r.id === id || (target && r.id === target.id) || (target?.external_id && r.external_id === target.external_id);
+      const match = r.id === id || r.external_id === id || (target && (r.id === target.id || (r.external_id && r.external_id === target.external_id)));
       return !match;
     });
 
     await writeJson('reservations.json', updated);
 
-    return NextResponse.json({ success: true }, { headers: CORS_HEADERS });
+    return NextResponse.json({ success: true, message: `Reservación ${id} eliminada correctamente` }, { headers: CORS_HEADERS });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500, headers: CORS_HEADERS });
   }

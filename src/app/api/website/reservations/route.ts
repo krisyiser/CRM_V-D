@@ -4,22 +4,20 @@ import type { Reservation, Guest } from '@/types';
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
 };
 
 function checkApiKey(request: Request, bodyApiKey?: string): boolean {
   const configuredKey = process.env.WEBSITE_API_KEY || process.env.CRM_API_KEY || 'vd_crm_secret_key_2026';
   
-  // Header checks
   const headerApiKey = request.headers.get('x-api-key');
   const authHeader = request.headers.get('authorization');
   const bearerKey = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : null;
 
   const providedKey = headerApiKey || bearerKey || bodyApiKey;
 
-  // If no key configured or key matches configured secret
-  if (!providedKey) return true; // Allow default dev fallback if website hasn't set custom header yet
+  if (!providedKey) return true;
   return providedKey === configuredKey || providedKey === 'vd_crm_secret_key_2026';
 }
 
@@ -56,7 +54,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'API Key no válida' }, { status: 401, headers: CORS_HEADERS });
     }
 
-    // Extract fields dynamically from website payload (supporting snake_case & camelCase)
     const guestName = body.guest_name || body.guestName || body.name || body.client_name;
     if (!guestName) {
       return NextResponse.json({ error: 'El nombre del huésped (guest_name) es requerido' }, { status: 400, headers: CORS_HEADERS });
@@ -148,6 +145,52 @@ export async function POST(request: Request) {
     );
   } catch (error: any) {
     console.error('[POST /api/website/reservations Error]:', error);
+    return NextResponse.json({ error: error.message || 'Error interno del servidor' }, { status: 500, headers: CORS_HEADERS });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const isAuthorized = checkApiKey(request);
+    if (!isAuthorized) {
+      return NextResponse.json({ error: 'API Key no válida' }, { status: 401, headers: CORS_HEADERS });
+    }
+
+    let id: string | null = null;
+    try {
+      const body = await request.json();
+      id = body.id || body.external_id || body.reservation_id || null;
+    } catch {
+      // Fallback to URL search parameters
+    }
+
+    if (!id) {
+      const url = new URL(request.url);
+      id = url.searchParams.get('id') || url.searchParams.get('external_id') || url.searchParams.get('reservation_id');
+    }
+
+    if (!id) {
+      return NextResponse.json({ error: 'Se requiere id, external_id o reservation_id para eliminar' }, { status: 400, headers: CORS_HEADERS });
+    }
+
+    let reservations = await readJson<Reservation[]>('reservations.json', []);
+    if (!Array.isArray(reservations)) reservations = [];
+
+    const target = reservations.find(r => r && (r.id === id || r.external_id === id));
+    if (!target) {
+      return NextResponse.json({ success: true, message: 'La reservación ya no existe en el CRM' }, { status: 200, headers: CORS_HEADERS });
+    }
+
+    const updated = reservations.filter(r => {
+      if (!r) return false;
+      const match = r.id === id || r.external_id === id || (target && (r.id === target.id || (r.external_id && r.external_id === target.external_id)));
+      return !match;
+    });
+
+    await writeJson('reservations.json', updated);
+
+    return NextResponse.json({ success: true, message: `Reservación ${id} eliminada exitosamente del CRM` }, { headers: CORS_HEADERS });
+  } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Error interno del servidor' }, { status: 500, headers: CORS_HEADERS });
   }
 }
