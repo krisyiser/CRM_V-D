@@ -1,5 +1,14 @@
 [
   {
+    "id": "g_1784510936082",
+    "name": "Huesped Test 1784510935",
+    "email": "test@domain.com",
+    "phone": "+52 555-0199",
+    "id_number": null,
+    "origin": "Ciudad de México",
+    "created_at": "2026-07-20T01:28:56.082Z"
+  },
+  {
     "id": "g_hist_1",
     "name": "Huésped Moros Y Cristianos (2026-03-19)",
     "email": null,
