@@ -1,7 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { exec } from 'child_process';
 import type { Reservation } from '@/types';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -19,24 +18,24 @@ function sanitizeFilename(filename: string): string {
 }
 
 /**
- * Reads a JSON file from local data/ directory, /tmp serverless dir, or GitHub API.
+ * Reads a JSON file from local data/ directory first, then /tmp serverless dir, or GitHub API as last resort.
  */
 export async function readJson<T>(filename: string, fallback: T): Promise<T> {
   const safeName = sanitizeFilename(filename);
 
-  // 1. Read from /tmp runtime directory first (latest dynamic serverless writes)
+  // 1. Primary Read: Local data/ directory (single source of truth on disk)
   try {
-    const tmpFilePath = path.join(TMP_DIR, safeName);
-    const tmpContent = await fs.readFile(tmpFilePath, 'utf-8');
-    return JSON.parse(tmpContent) as T;
+    const filePath = path.join(DATA_DIR, safeName);
+    const content = await fs.readFile(filePath, 'utf-8');
+    return JSON.parse(content) as T;
   } catch {
-    // 2. Read from data/ directory
+    // 2. Secondary Read: /tmp runtime directory (for serverless environments)
     try {
-      const filePath = path.join(DATA_DIR, safeName);
-      const content = await fs.readFile(filePath, 'utf-8');
-      return JSON.parse(content) as T;
+      const tmpFilePath = path.join(TMP_DIR, safeName);
+      const tmpContent = await fs.readFile(tmpFilePath, 'utf-8');
+      return JSON.parse(tmpContent) as T;
     } catch {
-      // 3. Fallback to GitHub API if local disk has no file
+      // 3. Fallback: GitHub API ONLY if local disk has no file at all
       const ghToken = process.env.GITHUB_TOKEN;
       const ghRepo = process.env.GITHUB_REPO;
 
@@ -53,9 +52,13 @@ export async function readJson<T>(filename: string, fallback: T): Promise<T> {
           if (res.ok) {
             const text = await res.text();
             const parsed = JSON.parse(text) as T;
-            // Cache to /tmp for fast local access on subsequent reads
+            
+            // Persist to local disk so subsequent reads don't re-fetch stale remote versions
+            await fs.mkdir(DATA_DIR, { recursive: true }).catch(() => {});
+            await fs.writeFile(path.join(DATA_DIR, safeName), text, 'utf-8').catch(() => {});
             await fs.mkdir(TMP_DIR, { recursive: true }).catch(() => {});
             await fs.writeFile(path.join(TMP_DIR, safeName), text, 'utf-8').catch(() => {});
+
             return parsed;
           }
         } catch (e) {
@@ -69,22 +72,13 @@ export async function readJson<T>(filename: string, fallback: T): Promise<T> {
 }
 
 /**
- * Writes data atomically to data/ directory and /tmp runtime fallback, then syncs with GitHub.
+ * Writes data atomically to data/ directory and /tmp runtime fallback, then syncs with GitHub if configured.
  */
 export async function writeJson<T>(filename: string, data: T): Promise<void> {
   const safeName = sanitizeFilename(filename);
   const jsonString = JSON.stringify(data, null, 2);
 
-  // 1. Write to /tmp runtime directory first (fastest, guaranteed writable)
-  try {
-    await fs.mkdir(TMP_DIR, { recursive: true });
-    const tmpFilePath = path.join(TMP_DIR, safeName);
-    await fs.writeFile(tmpFilePath, jsonString, 'utf-8');
-  } catch (err) {
-    console.error(`[Serverless DB] Error writing TMP_DIR/${safeName}:`, err);
-  }
-
-  // 2. Write to data/ directory if environment permits
+  // 1. Write to data/ directory (primary storage)
   try {
     await fs.mkdir(DATA_DIR, { recursive: true });
     const filePath = path.join(DATA_DIR, safeName);
@@ -93,8 +87,16 @@ export async function writeJson<T>(filename: string, data: T): Promise<void> {
     // Expected on read-only serverless filesystems
   }
 
+  // 2. Mirror write to /tmp runtime directory to maintain 100% parity
+  try {
+    await fs.mkdir(TMP_DIR, { recursive: true });
+    const tmpFilePath = path.join(TMP_DIR, safeName);
+    await fs.writeFile(tmpFilePath, jsonString, 'utf-8');
+  } catch (err) {
+    console.error(`[Serverless DB] Error writing TMP_DIR/${safeName}:`, err);
+  }
 
-  // 2. Real-time background sync with GitHub Repo API if configured
+  // 3. Background sync with GitHub Repo API if configured
   const ghToken = process.env.GITHUB_TOKEN;
   const ghRepo = process.env.GITHUB_REPO || 'krisyiser/CRM_V-D';
 
@@ -132,8 +134,6 @@ export async function writeJson<T>(filename: string, data: T): Promise<void> {
         console.error(`[GitHub DB Sync] Error committing ${safeName} to GitHub:`, err);
       }
     })();
-  } else {
-    exec(`git add "data/${safeName}" && git commit -m "auto-sync: update ${safeName}"`, () => {});
   }
 }
 
@@ -196,7 +196,6 @@ export async function fetchWebsiteReservationsFromGitHub(): Promise<Reservation[
   return [];
 }
 
-
 /**
  * Deletes or cancels a reservation in the public website's GitHub repository (krisyiser/Vainilla-y-Descanso data/db.json)
  */
@@ -235,7 +234,7 @@ export async function deleteWebsiteReservationFromGitHub(...ids: (string | undef
       return !targetIds.some(tid => tid === itemId || tid === itemResId || tid === itemExtId);
     });
 
-    if (list.length === initialLen) return false; // Nothing changed
+    if (list.length === initialLen) return false;
 
     const updatedData = Array.isArray(dbData) ? list : { ...dbData, reservations: list };
     const updatedBase64 = Buffer.from(JSON.stringify(updatedData, null, 2)).toString('base64');
@@ -260,5 +259,3 @@ export async function deleteWebsiteReservationFromGitHub(...ids: (string | undef
     return false;
   }
 }
-
-
