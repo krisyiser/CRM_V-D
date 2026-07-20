@@ -16,10 +16,13 @@ interface Props {
 export default function RoomDetailPanel({ isOpen, onClose, room, currentReservation, upcomingReservations = [], onCheckout }: Props) {
   if (!room) return null;
 
-  const statusLabel = room.status === 'available' ? 'Disponible' : room.status === 'occupied' ? 'En Uso' : 'Mantenimiento';
-  const statusColor = room.status === 'available' ? 'text-[#8E9B8E] bg-[#8E9B8E]/10 border-[#8E9B8E]/20' :
-    room.status === 'occupied' ? 'text-[#A68A64] bg-[#A68A64]/10 border-[#A68A64]/20' :
+  const isOccupied = room.status === 'occupied' || !!currentReservation;
+  const effectiveStatus = room.status === 'maintenance' ? 'maintenance' : (isOccupied ? 'occupied' : 'available');
+  const statusLabel = effectiveStatus === 'available' ? 'Disponible' : effectiveStatus === 'occupied' ? 'En Uso' : 'Mantenimiento';
+  const statusColor = effectiveStatus === 'available' ? 'text-[#8E9B8E] bg-[#8E9B8E]/10 border-[#8E9B8E]/20' :
+    effectiveStatus === 'occupied' ? 'text-[#A68A64] bg-[#A68A64]/10 border-[#A68A64]/20' :
     'text-[#C2A88D] bg-[#C2A88D]/10 border-[#C2A88D]/20';
+
 
   return (
     <AnimatePresence>
@@ -139,7 +142,8 @@ export default function RoomDetailPanel({ isOpen, onClose, room, currentReservat
             </div>
 
             {/* Footer Actions */}
-            {room.status === 'occupied' && (
+            {isOccupied && (
+
               <div className="p-8 border-t border-[#E8E4D9] shrink-0 flex gap-4">
                 <button
                   onClick={() => {

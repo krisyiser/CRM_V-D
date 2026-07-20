@@ -211,6 +211,28 @@ class TestCRMLogic(unittest.TestCase):
         self.assertEqual(reservations_raw[0]['guest_name'], 'yersi')
         self.assertEqual(reservations_raw[0]['room_id'], '101')
 
+    def test_dynamic_room_occupancy_status(self):
+        """Test effective room status calculation when active reservation exists for today"""
+        def get_effective_room_status(room_status, has_active_today_res):
+            if room_status == 'maintenance':
+                return 'maintenance'
+            if room_status == 'occupied' or has_active_today_res:
+                return 'occupied'
+            return 'available'
+
+        # Even if stored room.status is 'available', if today has active reservation, status must be 'occupied'
+        eff_status = get_effective_room_status('available', has_active_today_res=True)
+        self.assertEqual(eff_status, 'occupied')
+
+        # Maintenance room stays in maintenance
+        maint_status = get_effective_room_status('maintenance', has_active_today_res=True)
+        self.assertEqual(maint_status, 'maintenance')
+
+        # Room without reservation and status available stays available
+        avail_status = get_effective_room_status('available', has_active_today_res=False)
+        self.assertEqual(avail_status, 'available')
+
+
 
 
 

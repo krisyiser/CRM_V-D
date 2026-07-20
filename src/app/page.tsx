@@ -46,12 +46,14 @@ export default function DashboardPage() {
 
   const today = new Date().toISOString().split('T')[0];
   const todayReservations = reservations.filter(r => {
-    const [checkIn, checkOut] = (r.dates || '').split(' - ');
+    const checkIn = r.check_in || (r.dates?.split(' - ')[0] ?? '');
+    const checkOut = r.check_out || (r.dates?.split(' - ')[1] ?? '');
     return today >= checkIn && today <= checkOut;
   });
-  const occupiedCount = rooms.filter(r => r.status === 'occupied').length;
+  const occupiedCount = rooms.filter(r => r.status === 'occupied' || todayReservations.some(res => res.room_id === r.id)).length;
   const occupancy = rooms.length > 0 ? Math.round((occupiedCount / rooms.length) * 100) : 0;
   const todayRevenue = todayReservations.reduce((sum, r) => sum + (r.total_price || 0), 0);
+
 
   const stats = [
     { label: 'Habitaciones Ocupadas', value: `${occupiedCount}/${rooms.length}`, icon: <BedDouble size={20} />, color: 'bg-[#A68A64]' },
@@ -125,8 +127,11 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {rooms.map(room => {
-            const st = getStatusStyle(room.status);
             const todayRes = todayReservations.find(r => r.room_id === room.id);
+            const isOccupied = room.status === 'occupied' || !!todayRes;
+            const effectiveStatus = room.status === 'maintenance' ? 'maintenance' : (isOccupied ? 'occupied' : 'available');
+            const st = getStatusStyle(effectiveStatus);
+
             return (
               <motion.div
                 key={room.id}
@@ -153,7 +158,7 @@ export default function DashboardPage() {
                     </p>
                   )}
                 </div>
-                {room.status === 'available' && (
+                {effectiveStatus === 'available' && (
                   <button
                     onClick={(e) => { e.stopPropagation(); setCheckInRoom(room); setShowCheckIn(true); }}
                     className="mt-3 w-full py-2 bg-[#8E9B8E] text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#7A8A7A] transition-all flex items-center justify-center gap-1"
@@ -164,6 +169,7 @@ export default function DashboardPage() {
               </motion.div>
             );
           })}
+
         </div>
       </div>
 

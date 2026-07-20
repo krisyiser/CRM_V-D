@@ -87,8 +87,11 @@ export default function RoomsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         {filtered.map(room => {
-          const st = statusMap[room.status] || statusMap.available;
           const activeRes = getActiveReservation(room.id);
+          const isOccupied = room.status === 'occupied' || !!activeRes;
+          const effectiveStatus = room.status === 'maintenance' ? 'maintenance' : (isOccupied ? 'occupied' : 'available');
+          const st = statusMap[effectiveStatus] || statusMap.available;
+
           return (
             <motion.div
               key={room.id}
@@ -111,6 +114,7 @@ export default function RoomsPage() {
                     {st.label}
                   </span>
                 </div>
+
 
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div className="bg-[#F9F7F2] rounded-xl p-3">
