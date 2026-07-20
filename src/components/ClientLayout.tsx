@@ -50,19 +50,20 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   // Fetch user session
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then((res: any) => {
-      const user = res?.data?.user;
-      if (user) {
-        const name = user.user_metadata?.name || user.email?.split('@')[0] || 'Admin';
-        const parts = name.trim().split(' ');
-        const initials = parts.length >= 2
-          ? (parts[0][0] + parts[1][0]).toUpperCase()
-          : parts[0].slice(0, 2).toUpperCase();
-        setProfile({ name, email: user.email || '', initials });
-      }
-      setReady(true);
-    });
+    fetch('/api/auth/me')
+      .then(res => res.json())
+      .then(data => {
+        if (data.authenticated && data.user) {
+          const user = data.user;
+          setProfile({
+            name: user.name || user.username || 'Admin',
+            email: user.email || '',
+            initials: user.initials || 'AD'
+          });
+        }
+        setReady(true);
+      })
+      .catch(() => setReady(true));
   }, []);
 
   const loadNotifications = useCallback(() => {
@@ -97,10 +98,12 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   // Logout handler
   const handleLogout = useCallback(async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push('/login');
-  }, [router]);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
+    window.location.href = '/login';
+  }, []);
+
 
   if (!ready) {
     return (

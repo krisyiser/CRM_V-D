@@ -97,6 +97,31 @@ class TestCRMLogic(unittest.TestCase):
         formatted = f"${room_price:.2f} MXN"
         self.assertEqual(formatted, "$0.00 MXN")
 
+    def test_user_authentication_logic(self):
+        """Test user login verification logic for admin and reception users"""
+        valid_users = [
+            {'user': 'admin@vainillaydescanso.com', 'code': '1234', 'role': 'Administrador', 'name': 'Administrador Principal'},
+            {'user': 'admin', 'code': '1234', 'role': 'Administrador', 'name': 'Administrador Principal'},
+            {'user': 'recepcion@vainillaydescanso.com', 'code': '4321', 'role': 'Recepción', 'name': 'Concierge Recepció' + 'n'},
+            {'user': 'recepcion', 'code': '4321', 'role': 'Recepción', 'name': 'Concierge Recepción'}
+        ]
+
+        def authenticate(username, code):
+            u_clean = username.strip().lower()
+            c_clean = code.strip()
+            found = next((u for u in valid_users if (u['user'].lower() == u_clean) and u['code'] == c_clean), None)
+            return found
+
+        # Valid login test
+        user = authenticate('admin', '1234')
+        self.assertIsNotNone(user)
+        self.assertEqual(user['role'], 'Administrador')
+
+        # Invalid login test
+        invalid_user = authenticate('admin', '9999')
+        self.assertIsNone(invalid_user)
+
+
 
 
 if __name__ == '__main__':

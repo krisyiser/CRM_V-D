@@ -1,0 +1,20 @@
+[
+  {
+    "id": "u_admin",
+    "name": "Administrador Principal",
+    "email": "admin@vainillaydescanso.com",
+    "username": "admin",
+    "code": "1234",
+    "role": "Administrador",
+    "initials": "AD"
+  },
+  {
+    "id": "u_recepcion",
+    "name": "Concierge Recepción",
+    "email": "recepcion@vainillaydescanso.com",
+    "username": "recepcion",
+    "code": "4321",
+    "role": "Recepción",
+    "initials": "RC"
+  }
+]
