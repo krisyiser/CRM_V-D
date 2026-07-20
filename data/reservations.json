@@ -748,5 +748,20 @@
     "status": "Confirmed",
     "external_id": null,
     "created_at": "2026-07-20T06:29:56.585Z"
+  },
+  {
+    "id": "res_cancel_test_999",
+    "room_id": "101",
+    "guest_id": null,
+    "guest_name": "Cancel Test Guest",
+    "check_in": "2026-07-20",
+    "check_out": "2026-07-21",
+    "dates": "2026-07-20 - 2026-07-21",
+    "total_price": 2300,
+    "notes": null,
+    "payment_status": "paid",
+    "status": "Confirmed",
+    "external_id": null,
+    "created_at": "2026-07-20T06:31:29.719Z"
   }
 ]
