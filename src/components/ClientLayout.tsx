@@ -7,10 +7,10 @@ import {
   UtensilsCrossed, MessageSquare, Settings, Bell,
   ChevronLeft, LogOut, Loader2, Monitor, Smartphone, Tablet
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase/client';
 import type { Notification } from '@/types';
 import { apiFetch, API } from '@/lib/api';
 import { useDeviceType } from '@/hooks/useDeviceType';
+
 
 interface NavItem {
   id: string;

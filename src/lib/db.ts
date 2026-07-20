@@ -1,9 +1,11 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import os from 'os';
 import { exec } from 'child_process';
 import type { Reservation } from '@/types';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
+const TMP_DIR = path.join(os.tmpdir(), 'vainilla_data');
 
 /**
  * Sanitizes input filename to prevent path traversal vulnerabilities.
@@ -17,14 +19,14 @@ function sanitizeFilename(filename: string): string {
 }
 
 /**
- * Reads a JSON file from local data/ directory or GitHub API if configured.
+ * Reads a JSON file from local data/ directory, /tmp serverless dir, or GitHub API.
  */
 export async function readJson<T>(filename: string, fallback: T): Promise<T> {
   const safeName = sanitizeFilename(filename);
   const ghToken = process.env.GITHUB_TOKEN;
   const ghRepo = process.env.GITHUB_REPO;
 
-  // Attempt reading from GitHub API if token and repo are configured
+  // 1. Attempt reading from GitHub API if token and repo are configured
   if (ghToken && ghRepo) {
     try {
       const res = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}`, {
@@ -44,33 +46,50 @@ export async function readJson<T>(filename: string, fallback: T): Promise<T> {
     }
   }
 
-  // Fallback to local data/ directory with atomic read
+  // 2. Read from local data/ directory
   try {
     const filePath = path.join(DATA_DIR, safeName);
     const content = await fs.readFile(filePath, 'utf-8');
     return JSON.parse(content) as T;
   } catch {
-    return fallback;
+    // 3. Fallback to /tmp serverless directory if local data/ is unavailable or read-only
+    try {
+      const tmpFilePath = path.join(TMP_DIR, safeName);
+      const tmpContent = await fs.readFile(tmpFilePath, 'utf-8');
+      return JSON.parse(tmpContent) as T;
+    } catch {
+      return fallback;
+    }
   }
 }
 
 /**
- * Writes data atomically to data/ directory and automatically syncs with GitHub Repository.
+ * Writes data atomically to data/ directory (or /tmp fallback) and syncs with GitHub Repository.
  */
 export async function writeJson<T>(filename: string, data: T): Promise<void> {
   const safeName = sanitizeFilename(filename);
   const jsonString = JSON.stringify(data, null, 2);
-  const filePath = path.join(DATA_DIR, safeName);
-  const tempPath = path.join(DATA_DIR, `${safeName}.${Date.now()}.${Math.random().toString(36).substring(2, 7)}.tmp`);
+  let targetDir = DATA_DIR;
 
-  // 1. Atomic write to local file system via temporary file + rename
+  // 1. Atomic write to file system with /tmp serverless fallback
   try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
+    await fs.mkdir(targetDir, { recursive: true });
+    const tempPath = path.join(targetDir, `${safeName}.${Date.now()}.${Math.random().toString(36).substring(2, 7)}.tmp`);
+    const filePath = path.join(targetDir, safeName);
     await fs.writeFile(tempPath, jsonString, 'utf-8');
     await fs.rename(tempPath, filePath);
-  } catch (error) {
-    console.error(`Error writing atomically to local data/${safeName}:`, error);
-    try { await fs.unlink(tempPath); } catch {}
+  } catch (error: any) {
+    // Fallback to /tmp if primary directory is read-only on Netlify Serverless
+    try {
+      targetDir = TMP_DIR;
+      await fs.mkdir(targetDir, { recursive: true });
+      const tempPath = path.join(targetDir, `${safeName}.${Date.now()}.${Math.random().toString(36).substring(2, 7)}.tmp`);
+      const filePath = path.join(targetDir, safeName);
+      await fs.writeFile(tempPath, jsonString, 'utf-8');
+      await fs.rename(tempPath, filePath);
+    } catch (err) {
+      console.error(`[Serverless DB] Error writing data/${safeName}:`, err);
+    }
   }
 
   // 2. Real-time background sync with GitHub Repo API if configured

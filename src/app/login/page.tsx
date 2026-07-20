@@ -1,7 +1,8 @@
 "use client";
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Lock, User, KeyRound, Loader2, ShieldCheck, Delete } from 'lucide-react';
+import { User, KeyRound, Loader2, ShieldCheck, Delete } from 'lucide-react';
+
 
 export default function LoginPage() {
   const [username, setUsername] = useState('admin');

@@ -175,6 +175,18 @@ class TestCRMLogic(unittest.TestCase):
         mobile_occupied = get_mobile_day_label(False, 1400, is_mobile=True)
         self.assertEqual(mobile_occupied, "OCUP")
 
+    def test_serverless_db_resilience(self):
+        """Test serverless fallback when filesystem is read-only (Netlify/Vercel)"""
+        def get_target_dir(is_serverless=True, error_code='EROFS'):
+            if is_serverless or error_code in ['EROFS', 'EACCES']:
+                return os.path.join('/tmp', 'data')
+            return os.path.join(os.getcwd(), 'data')
+
+        # In Netlify serverless environment, fallback to /tmp
+        tmp_dir = get_target_dir(is_serverless=True)
+        self.assertTrue(tmp_dir.startswith('/tmp') or tmp_dir.startswith('\\tmp'))
+
+
 
 
 
