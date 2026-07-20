@@ -17,29 +17,38 @@ export default function StayReportModal({ isOpen, onClose, guestName, chargeReco
 
   if (!isOpen || !chargeRecord) return null;
 
-  let stay = {
-    checkIn: '',
-    checkOut: '',
-    nights: 1,
-    roomPrice: 0,
-    roomTotal: 0,
-    dayPass: { active: false, details: 'N/A', total: 0 },
-    parking: { active: false, total: 0 },
-    barCharges: [] as any[],
-    checkoutExtras: [] as any[],
-    grandTotal: 0,
-    checkoutPaid: true
-  };
-
+  let rawData: any = {};
   try {
     if (typeof chargeRecord.items_json === 'string') {
-      stay = JSON.parse(chargeRecord.items_json);
+      rawData = JSON.parse(chargeRecord.items_json);
     } else if (chargeRecord.items_json) {
-      stay = chargeRecord.items_json as any;
+      rawData = chargeRecord.items_json;
     }
   } catch (e) {
     console.error('Error parsing stay report items_json:', e);
   }
+
+  const isArray = Array.isArray(rawData);
+  const createdDateStr = new Date(chargeRecord.created_at || Date.now()).toLocaleDateString('es-MX');
+
+  const stay = {
+    checkIn: !isArray && rawData.checkIn ? rawData.checkIn : createdDateStr,
+    checkOut: !isArray && rawData.checkOut ? rawData.checkOut : createdDateStr,
+    nights: !isArray && typeof rawData.nights === 'number' ? rawData.nights : 1,
+    roomPrice: !isArray && typeof rawData.roomPrice === 'number' ? rawData.roomPrice : (chargeRecord.total || 0),
+    roomTotal: !isArray && typeof rawData.roomTotal === 'number' ? rawData.roomTotal : (chargeRecord.total || 0),
+    dayPass: !isArray && rawData.dayPass ? rawData.dayPass : { active: false, details: 'N/A', total: 0 },
+    parking: !isArray && rawData.parking ? rawData.parking : { active: false, total: 0 },
+    barCharges: !isArray && Array.isArray(rawData.barCharges) ? rawData.barCharges : (isArray ? rawData : []),
+    checkoutExtras: !isArray && Array.isArray(rawData.checkoutExtras) ? rawData.checkoutExtras : [],
+    grandTotal: typeof chargeRecord.total === 'number' ? chargeRecord.total : (!isArray && rawData.grandTotal ? rawData.grandTotal : 0),
+    checkoutPaid: !isArray && typeof rawData.checkoutPaid === 'boolean' ? rawData.checkoutPaid : true
+  };
+
+  const safeNum = (val: any): number => {
+    const num = Number(val);
+    return isNaN(num) ? 0 : num;
+  };
 
   const handlePrint = () => {
     const printStyle = document.createElement('style');
@@ -161,11 +170,11 @@ export default function StayReportModal({ isOpen, onClose, guestName, chargeReco
                       </div>
                       <div className="info-row flex justify-between">
                         <span className="info-label text-[#8C8C8C]">Precio Base por Noche:</span>
-                        <span className="info-value font-bold text-[#2D2D2D]">${stay.roomPrice.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</span>
+                        <span className="info-value font-bold text-[#2D2D2D]">${safeNum(stay.roomPrice).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</span>
                       </div>
                       <div className="info-row flex justify-between">
                         <span className="info-label text-[#8C8C8C]">Total Hospedaje:</span>
-                        <span className="info-value font-bold text-[#2D2D2D]">${stay.roomTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</span>
+                        <span className="info-value font-bold text-[#2D2D2D]">${safeNum(stay.roomTotal).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN</span>
                       </div>
                     </div>
                   </div>
@@ -187,23 +196,23 @@ export default function StayReportModal({ isOpen, onClose, guestName, chargeReco
                       <tr>
                         <td className="py-3 px-4 text-left font-semibold">Hospedaje - Suite {chargeRecord.room_id}</td>
                         <td className="py-3 px-4 text-center">{stay.nights} noche(s)</td>
-                        <td className="py-3 px-4 text-right">${stay.roomPrice.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
-                        <td className="py-3 px-4 text-right font-bold">${stay.roomTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                        <td className="py-3 px-4 text-right">${safeNum(stay.roomPrice).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                        <td className="py-3 px-4 text-right font-bold">${safeNum(stay.roomTotal).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
                       </tr>
                       {stay.dayPass && stay.dayPass.active && (
                         <tr>
                           <td className="py-3 px-4 text-left font-semibold">Acceso Especial: {stay.dayPass.details}</td>
                           <td className="py-3 px-4 text-center">1</td>
-                          <td className="py-3 px-4 text-right">${stay.dayPass.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
-                          <td className="py-3 px-4 text-right font-bold">${stay.dayPass.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                          <td className="py-3 px-4 text-right">${safeNum(stay.dayPass.total).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                          <td className="py-3 px-4 text-right font-bold">${safeNum(stay.dayPass.total).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
                         </tr>
                       )}
-                      {stay.parking && stay.parking.total > 0 && (
+                      {stay.parking && safeNum(stay.parking.total) > 0 && (
                         <tr>
                           <td className="py-3 px-4 text-left font-semibold">Cajón de Estacionamiento Exclusivo</td>
                           <td className="py-3 px-4 text-center">{stay.nights} día(s)</td>
                           <td className="py-3 px-4 text-right">$50.00</td>
-                          <td className="py-3 px-4 text-right font-bold">${stay.parking.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                          <td className="py-3 px-4 text-right font-bold">${safeNum(stay.parking.total).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
                         </tr>
                       )}
                     </tbody>
@@ -217,19 +226,19 @@ export default function StayReportModal({ isOpen, onClose, guestName, chargeReco
                     <table className="w-full border border-[#E8E4D9] bg-white rounded-xl overflow-hidden text-xs">
                       <thead>
                         <tr className="bg-[#F2EEE4] text-[#2D2D2D] font-bold uppercase text-[9px] tracking-wider">
-                          <th className="py-3 px-4 text-left">Alimento / Bebida</th>
+                          <th className="py-3 px-4 text-left">Alimento / Bebida / Concepto</th>
                           <th className="py-3 px-4 text-center">Cantidad</th>
                           <th className="py-3 px-4 text-right">Precio Unitario</th>
                           <th className="py-3 px-4 text-right">Total Consumo</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#F2EEE4]">
-                        {stay.barCharges.map((item, i) => (
+                        {stay.barCharges.map((item: any, i: number) => (
                           <tr key={i}>
-                            <td className="py-3 px-4 text-left font-semibold">{item.name}</td>
-                            <td className="py-3 px-4 text-center">{item.quantity}</td>
-                            <td className="py-3 px-4 text-right">${item.price.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
-                            <td className="py-3 px-4 text-right font-bold">${item.total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-4 text-left font-semibold">{item.name || item.desc || item.product || 'Consumo'}</td>
+                            <td className="py-3 px-4 text-center">{item.quantity || item.qty || 1}</td>
+                            <td className="py-3 px-4 text-right">${safeNum(item.price || item.amount).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-4 text-right font-bold">${safeNum(item.total || item.amount || (safeNum(item.price) * safeNum(item.quantity || 1))).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -251,12 +260,12 @@ export default function StayReportModal({ isOpen, onClose, guestName, chargeReco
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#F2EEE4]">
-                        {stay.checkoutExtras.map((item, i) => (
+                        {stay.checkoutExtras.map((item: any, i: number) => (
                           <tr key={i}>
-                            <td className="py-3 px-4 text-left font-semibold">{item.product}</td>
+                            <td className="py-3 px-4 text-left font-semibold">{item.product || item.desc || 'Cargo Extra'}</td>
                             <td className="py-3 px-4 text-center">1</td>
-                            <td className="py-3 px-4 text-right">${item.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
-                            <td className="py-3 px-4 text-right font-bold">${item.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-4 text-right">${safeNum(item.amount || item.price).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                            <td className="py-3 px-4 text-right font-bold">${safeNum(item.amount || item.price).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -271,7 +280,7 @@ export default function StayReportModal({ isOpen, onClose, guestName, chargeReco
                     <span className="text-[10px] text-[#8C8C8C] block mt-0.5">Impuestos y servicios incluidos</span>
                   </div>
                   <span className="grand-total-value font-serif text-2xl font-bold text-[#F9F7F2]">
-                    ${stay.grandTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+                    ${safeNum(stay.grandTotal).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
                   </span>
                 </div>
               </div>

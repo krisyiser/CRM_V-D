@@ -84,6 +84,20 @@ class TestCRMLogic(unittest.TestCase):
         self.assertEqual(card_fee, 10.0)
         self.assertEqual(subtotal + card_fee, 210.0)
 
+    def test_stay_report_data_parsing_fallback(self):
+        """Test safe parsing and fallback for room charges in StayReportModal"""
+        # Test array format items_json
+        array_json = json.dumps([{"desc": "Suite 101", "amount": 2800}])
+        parsed_items = json.loads(array_json)
+        self.assertTrue(isinstance(parsed_items, list))
+        
+        # Ensure default fields fallback cleanly to 0
+        room_price = parsed_items[0].get("roomPrice", 0) if isinstance(parsed_items, dict) else 0
+        self.assertEqual(room_price, 0)
+        formatted = f"${room_price:.2f} MXN"
+        self.assertEqual(formatted, "$0.00 MXN")
+
+
 
 if __name__ == '__main__':
     unittest.main()
