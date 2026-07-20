@@ -958,5 +958,20 @@
     "status": "Confirmed",
     "external_id": null,
     "created_at": "2026-07-20T07:54:45.474Z"
+  },
+  {
+    "id": "res_cancel_1784534112",
+    "room_id": "101",
+    "guest_id": null,
+    "guest_name": "GuestCancel1784534112",
+    "check_in": "2026-07-28",
+    "check_out": "2026-07-29",
+    "dates": "2026-07-28 - 2026-07-29",
+    "total_price": 2300,
+    "notes": null,
+    "payment_status": "paid",
+    "status": "Confirmed",
+    "external_id": null,
+    "created_at": "2026-07-20T07:55:16.629Z"
   }
 ]
