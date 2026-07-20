@@ -46,6 +46,7 @@ export default function DashboardPage() {
 
   const today = new Date().toISOString().split('T')[0];
   const todayReservations = reservations.filter(r => {
+    if (!r || r.status === 'Cancelled' || r.status === 'cancelled') return false;
     const checkIn = r.check_in || (r.dates?.split(' - ')[0] ?? '');
     const checkOut = r.check_out || (r.dates?.split(' - ')[1] ?? '');
     return today >= checkIn && today <= checkOut;
@@ -179,8 +180,8 @@ export default function DashboardPage() {
           <RoomDetailPanel
             isOpen={!!selectedRoom}
             room={selectedRoom}
-            currentReservation={reservations.find(r => r.room_id === selectedRoom.id && today >= (r.dates?.split(' - ')[0] ?? '') && today <= (r.dates?.split(' - ')[1] ?? '')) || null}
-            upcomingReservations={reservations.filter(r => r.room_id === selectedRoom.id && (r.dates?.split(' - ')[0] ?? '') > today)}
+            currentReservation={reservations.find(r => r && r.status !== 'Cancelled' && r.status !== 'cancelled' && r.room_id === selectedRoom.id && today >= (r.dates?.split(' - ')[0] ?? '') && today <= (r.dates?.split(' - ')[1] ?? '')) || null}
+            upcomingReservations={reservations.filter(r => r && r.status !== 'Cancelled' && r.status !== 'cancelled' && r.room_id === selectedRoom.id && (r.dates?.split(' - ')[0] ?? '') > today)}
             onClose={() => setSelectedRoom(null)}
             onCheckout={() => {
               setCheckoutRoom(selectedRoom);

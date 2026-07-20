@@ -31,8 +31,11 @@ export default function ReservationsPage() {
   useEffect(() => { fetchData(); }, []);
 
   const filtered = reservations.filter(res =>
-    (res.guest_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (res.room_id || '').toLowerCase().includes(searchQuery.toLowerCase())
+    res &&
+    res.status !== 'Cancelled' &&
+    res.status !== 'cancelled' &&
+    ((res.guest_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+     (res.room_id || '').toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const getDaysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
@@ -51,7 +54,7 @@ export default function ReservationsPage() {
   const getReservationsForDay = (day: number) => {
     const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     return filtered.filter(res => {
-      if (!res.dates) return false;
+      if (!res.dates || res.status === 'Cancelled' || res.status === 'cancelled') return false;
       const [checkIn, checkOut] = res.dates.split(' - ');
       return dateStr >= checkIn && dateStr <= checkOut;
     });
@@ -61,8 +64,14 @@ export default function ReservationsPage() {
 
   const handleCancel = async (id: string) => {
     try {
+      const cleanId = String(id).trim().toLowerCase();
       // Optimistic UI update: remove from state immediately for 0ms visual latency
-      setReservations(prev => prev.filter(r => r.id !== id && r.external_id !== id));
+      setReservations(prev => prev.filter(r => {
+        if (!r) return false;
+        const rId = String(r.id || '').trim().toLowerCase();
+        const rExtId = String(r.external_id || '').trim().toLowerCase();
+        return rId !== cleanId && rExtId !== cleanId;
+      }));
       await apiFetch(API.reservations, { method: 'DELETE', body: JSON.stringify({ id }) });
       await fetchData();
     } catch (err) {
