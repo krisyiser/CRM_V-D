@@ -73,5 +73,17 @@ class TestCRMLogic(unittest.TestCase):
         # 2 nights * 1400 = 2800. Day pass: 2 * 150 = 300. Parking: 2 * 50 = 100. Total = 3200
         self.assertEqual(total, 3200.0)
 
+    def test_pos_cart_totals_and_fee(self):
+        """Test POS cart subtotal, card fee and total calculation"""
+        items = [{'price': 50, 'qty': 1}, {'price': 120, 'qty': 1}, {'price': 30, 'qty': 1}]
+        subtotal = sum(i['price'] * i['qty'] for i in items)
+        self.assertEqual(subtotal, 200)
+        
+        # Test Card Fee (5%)
+        card_fee = subtotal * 0.05
+        self.assertEqual(card_fee, 10.0)
+        self.assertEqual(subtotal + card_fee, 210.0)
+
+
 if __name__ == '__main__':
     unittest.main()

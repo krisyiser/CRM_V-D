@@ -313,20 +313,20 @@ export default function PosPage() {
   });
 
   return (
-    <div className="min-h-screen lg:min-h-0 lg:h-full bg-[#F9F7F2] text-[#2D2D2D] p-4 sm:p-6 lg:p-0 font-sans selection:bg-[#A68A64] selection:text-white text-left lg:overflow-hidden flex flex-col">
+    <div className="h-full bg-[#F9F7F2] text-[#2D2D2D] p-3 sm:p-4 lg:p-0 font-sans selection:bg-[#A68A64] selection:text-white text-left overflow-hidden flex flex-col">
       {/* Top Bar for Tablet POS */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-3 border-b border-[#E8E4D9] shrink-0">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3 pb-2.5 border-b border-[#E8E4D9] shrink-0">
         <div>
-          <div className="flex items-center gap-3 text-xs font-bold uppercase tracking-widest text-[#A68A64] mb-1.5">
-            <Coffee size={16} /> Restaurante & Café Bar
+          <div className="flex items-center gap-3 text-[10px] md:text-xs font-bold uppercase tracking-widest text-[#A68A64] mb-1">
+            <Coffee size={15} /> Restaurante & Café Bar
           </div>
-          <h1 className="text-2xl md:text-3xl font-serif text-[#1C1C1C]">Punto de Venta Tablet POS</h1>
+          <h1 className="text-xl md:text-2xl font-serif text-[#1C1C1C]">Punto de Venta Tablet POS</h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <div className="bg-[#E8E4D9]/60 p-1.5 rounded-2xl flex items-center gap-1.5 shadow-inner">
             <button
               onClick={() => setActiveTab('menu')}
-              className={`px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
+              className={`px-3 py-2 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 ${
                 activeTab === 'menu' ? 'bg-[#2D2D2D] text-white shadow-md' : 'text-[#6B6B6B] hover:text-[#2D2D2D]'
               }`}
             >
@@ -335,7 +335,7 @@ export default function PosPage() {
 
             <button
               onClick={() => setActiveTab('tables')}
-              className={`px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 relative ${
+              className={`px-3 py-2 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 relative ${
                 activeTab === 'tables' ? 'bg-[#2D2D2D] text-white shadow-md' : 'text-[#6B6B6B] hover:text-[#2D2D2D]'
               }`}
             >
@@ -349,7 +349,7 @@ export default function PosPage() {
 
             <button
               onClick={() => setActiveTab('history')}
-              className={`px-4 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
+              className={`px-3 py-2 rounded-xl font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 ${
                 activeTab === 'history' ? 'bg-[#2D2D2D] text-white shadow-md' : 'text-[#6B6B6B] hover:text-[#2D2D2D]'
               }`}
             >
@@ -359,25 +359,25 @@ export default function PosPage() {
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2.5 bg-[#A68A64] hover:bg-[#8F7553] text-white rounded-2xl font-bold text-xs uppercase tracking-widest transition-all shadow-md flex items-center gap-1.5 shrink-0"
+            className="px-3.5 py-2 bg-[#A68A64] hover:bg-[#8F7553] text-white rounded-2xl font-bold text-xs uppercase tracking-widest transition-all shadow-md flex items-center gap-1 shrink-0"
           >
-            <Plus size={16} /> Producto
+            <Plus size={15} /> Producto
           </button>
         </div>
       </div>
 
       {/* Mobile view selector */}
       {activeTab === 'menu' && (
-        <div className="flex lg:hidden bg-[#E8E4D9]/60 p-1 rounded-2xl mb-4 sticky top-2 z-30">
-          <button onClick={() => setMobileView('menu')} className={`flex-1 py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all ${mobileView === 'menu' ? 'bg-[#2D2D2D] text-white' : 'text-[#6B6B6B]'}`}>Menú</button>
-          <button onClick={() => setMobileView('cart')} className={`flex-1 py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all ${mobileView === 'cart' ? 'bg-[#2D2D2D] text-white' : 'text-[#6B6B6B]'}`}>Carrito ({cart.reduce((sum, item) => sum + item.quantity, 0)})</button>
+        <div className="flex lg:hidden bg-[#E8E4D9]/60 p-1 rounded-2xl mb-3 shrink-0">
+          <button onClick={() => setMobileView('menu')} className={`flex-1 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all ${mobileView === 'menu' ? 'bg-[#2D2D2D] text-white' : 'text-[#6B6B6B]'}`}>Menú</button>
+          <button onClick={() => setMobileView('cart')} className={`flex-1 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all ${mobileView === 'cart' ? 'bg-[#2D2D2D] text-white' : 'text-[#6B6B6B]'}`}>Carrito ({cart.reduce((sum, item) => sum + item.quantity, 0)})</button>
         </div>
       )}
 
       {/* Main Content Area */}
       {activeTab === 'menu' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-grow min-h-0 lg:overflow-hidden">
-          <div className={`lg:col-span-7 xl:col-span-8 flex flex-col lg:h-full lg:overflow-hidden ${mobileView === 'menu' ? 'block' : 'hidden lg:flex'}`}>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 min-h-0 overflow-hidden">
+          <div className={`lg:col-span-7 xl:col-span-8 flex flex-col h-full overflow-hidden ${mobileView === 'menu' ? 'flex' : 'hidden lg:flex'}`}>
             <PosProductList
               products={products}
               loading={loading}
@@ -391,7 +391,7 @@ export default function PosPage() {
               filteredProducts={filteredProducts}
             />
           </div>
-          <div className={`lg:col-span-5 xl:col-span-4 flex flex-col lg:h-full ${mobileView === 'cart' ? 'block' : 'hidden lg:flex'}`}>
+          <div className={`lg:col-span-5 xl:col-span-4 flex flex-col h-full overflow-hidden ${mobileView === 'cart' ? 'flex' : 'hidden lg:flex'}`}>
             <PosCart
               cart={cart}
               updateQuantity={updateQuantity}
@@ -410,6 +410,7 @@ export default function PosPage() {
             />
           </div>
         </div>
+
       ) : activeTab === 'tables' ? (
         <div className="flex-grow overflow-y-auto pr-1 pb-6">
           <PosTableGrid
