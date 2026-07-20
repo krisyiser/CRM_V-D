@@ -36,7 +36,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        {/* Register Service Worker */}
+        {/* Service Worker Registration with automatic update on load */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -44,7 +44,7 @@ export default function RootLayout({
                 window.addEventListener('load', function() {
                   navigator.serviceWorker.register('/sw.js').then(
                     function(registration) {
-                      console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                      registration.update();
                     },
                     function(err) {
                       console.log('ServiceWorker registration failed: ', err);

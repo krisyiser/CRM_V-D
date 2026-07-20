@@ -1,82 +1,56 @@
-const CACHE_NAME = 'vainilla-crm-cache-v1';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/manifest.json',
-  '/logo%20vainilla%20y%20descanso.png',
-];
+const CACHE_NAME = 'vainilla-crm-cache-v2';
 
-// Install event: cache static assets
+// Install event: skip waiting immediately to activate fresh worker
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    }).then(() => self.skipWaiting())
-  );
+  self.skipWaiting();
 });
 
-// Activate event: clean old caches
+// Activate event: clean all old caches completely
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
-        })
+        cacheNames.map((cacheName) => caches.delete(cacheName))
       );
     }).then(() => self.clients.claim())
   );
 });
 
-// Fetch event: Network-first for api/dynamic routes, Cache-first for static assets
+// Fetch event: Network-First for API and Page Navigations, Cache-First only for static media
 self.addEventListener('fetch', (event) => {
   const requestUrl = new URL(event.request.url);
 
-  // Dynamic / API / auth routes -> Network First
+  // 1. API routes & non-GET requests -> Always Network Only (Never cache API calls)
+  if (requestUrl.pathname.startsWith('/api') || event.request.method !== 'GET') {
+    return;
+  }
+
+  // 2. HTML Page Navigations & Next.js Data -> Always Network First
   if (
-    requestUrl.pathname.startsWith('/api') || 
-    requestUrl.pathname.startsWith('/_next/data') ||
-    event.request.method !== 'GET'
+    event.request.mode === 'navigate' || 
+    event.request.headers.get('accept')?.includes('text/html') ||
+    requestUrl.pathname.startsWith('/_next/')
   ) {
     event.respondWith(
       fetch(event.request).catch(() => {
-        // Fallback to cache for GET api requests if offline
-        if (event.request.method === 'GET') {
-          return caches.match(event.request);
-        }
+        return caches.match(event.request);
       })
     );
     return;
   }
 
-  // Static files/Pages -> Cache First with Network Fallback & update
+  // 3. Static Media Assets (images/icons) -> Cache First
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Fetch new version in background to update cache
-        fetch(event.request).then((networkResponse) => {
-          if (networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, networkResponse);
-            });
-          }
-        }).catch(() => {/* Ignore background sync failures */});
-        
-        return cachedResponse;
-      }
-
-      return fetch(event.request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-          return networkResponse;
+      if (cachedResponse) return cachedResponse;
+      return fetch(event.request).then((response) => {
+        if (response.status === 200 && response.type === 'basic') {
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
         }
-
-        const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-
-        return networkResponse;
+        return response;
       });
     })
   );
