@@ -1,17 +1,17 @@
 {
-  "table_number": 2,
+  "table_number": 5,
   "items": [
     {
-      "id": "p3",
-      "name": "Jugo Natural de Naranja",
-      "price": 35,
+      "id": "p1",
+      "name": "Cafe de Olla Especial",
+      "price": 45,
       "qty": 2
     },
     {
-      "id": "p4",
-      "name": "Huevos Rancheros Tradicionales",
-      "price": 95,
-      "qty": 2
+      "id": "p2",
+      "name": "Chilaquiles Don Vainilla",
+      "price": 120,
+      "qty": 1
     }
   ]
 }
