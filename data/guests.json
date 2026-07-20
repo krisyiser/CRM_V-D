@@ -1,5 +1,14 @@
 [
   {
+    "id": "g_1784510954042",
+    "name": "Huesped Test 1784510953",
+    "email": "test@domain.com",
+    "phone": "+52 555-0199",
+    "id_number": null,
+    "origin": "Ciudad de Mexico",
+    "created_at": "2026-07-20T01:29:14.042Z"
+  },
+  {
     "id": "g_1784510941584",
     "name": "Familia Mendoza",
     "email": "mendoza.hotel@gmail.com",
