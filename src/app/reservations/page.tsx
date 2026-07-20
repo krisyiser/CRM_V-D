@@ -61,12 +61,16 @@ export default function ReservationsPage() {
 
   const handleCancel = async (id: string) => {
     try {
+      // Optimistic UI update: remove from state immediately for 0ms visual latency
+      setReservations(prev => prev.filter(r => r.id !== id && r.external_id !== id));
       await apiFetch(API.reservations, { method: 'DELETE', body: JSON.stringify({ id }) });
       await fetchData();
     } catch (err) {
       console.error('Cancel error:', err);
+      await fetchData();
     }
   };
+
 
   if (loading) {
     return <div className="flex items-center justify-center h-[60vh]"><Loader2 size={32} className="text-[#A68A64] animate-spin" /></div>;
