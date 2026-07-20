@@ -7,19 +7,26 @@ export class ApiError extends Error {
   }
 }
 
+const DEFAULT_API_KEY = 'vd_crm_secret_key_2026';
+
 /**
  * Fetch wrapper for all CRM API endpoints.
- * Hits Next.js Route Handlers at /api/{endpoint} with cache: 'no-store' to guarantee fresh data.
+ * Hits Next.js Route Handlers at /api/{endpoint} with credentials, API Key, and no-store policy.
  */
 export async function apiFetch<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
-  const res = await fetch(`/api/${endpoint}`, {
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
+  const url = cleanEndpoint.startsWith('api/') ? `/${cleanEndpoint}` : `/api/${cleanEndpoint}`;
+
+  const res = await fetch(url, {
     cache: 'no-store',
+    credentials: 'same-origin',
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      'x-api-key': DEFAULT_API_KEY,
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
       ...options?.headers,

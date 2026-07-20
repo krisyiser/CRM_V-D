@@ -116,35 +116,54 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    let id: string | null = null;
+    let rawId: any = null;
     try {
       const body = await request.json();
-      id = body.id || body.external_id || body.reservation_id || null;
+      rawId = body.id || body.external_id || body.reservation_id || null;
     } catch {
       // Fallback to URL search parameters
     }
 
-    if (!id) {
+    if (!rawId) {
       const url = new URL(request.url);
-      id = url.searchParams.get('id') || url.searchParams.get('external_id') || url.searchParams.get('reservation_id');
+      rawId = url.searchParams.get('id') || url.searchParams.get('external_id') || url.searchParams.get('reservation_id');
     }
 
-    if (!id) return NextResponse.json({ error: 'id o external_id requerido' }, { status: 400, headers: CORS_HEADERS });
+    if (!rawId) {
+      return NextResponse.json({ error: 'id o external_id requerido para eliminación' }, { status: 400, headers: CORS_HEADERS });
+    }
 
+    const targetId = String(rawId).trim().toLowerCase();
     const rawReservations = await readJson<Reservation[]>('reservations.json', []);
     const reservations = Array.isArray(rawReservations) ? rawReservations : [];
-    const target = reservations.find(r => r && (r.id === id || r.external_id === id));
+
+    const initialLen = reservations.length;
 
     const updated = reservations.filter(r => {
       if (!r) return false;
-      const match = r.id === id || r.external_id === id || (target && (r.id === target.id || (r.external_id && r.external_id === target.external_id)));
-      return !match;
+      const rId = String(r.id || '').trim().toLowerCase();
+      const rExtId = String(r.external_id || '').trim().toLowerCase();
+
+      const directMatch = rId === targetId || rExtId === targetId;
+      const substringMatch = (rId.length > 3 && targetId.includes(rId)) || (rExtId.length > 3 && targetId.includes(rExtId)) || (rId.length > 3 && rId.includes(targetId));
+
+      return !(directMatch || substringMatch);
     });
+
+    const removedCount = initialLen - updated.length;
 
     await writeJson('reservations.json', updated);
 
-    return NextResponse.json({ success: true, message: `Reservación ${id} eliminada correctamente` }, { headers: CORS_HEADERS });
+    return NextResponse.json(
+      {
+        success: true,
+        removedCount,
+        message: removedCount > 0 ? `Reservación ${rawId} eliminada correctamente` : `No se encontró la reservación ${rawId}`
+      },
+      { headers: CORS_HEADERS }
+    );
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500, headers: CORS_HEADERS });
+    console.error('[DELETE /api/reservations Error]:', error);
+    return NextResponse.json({ error: error.message || 'Error interno del servidor' }, { status: 500, headers: CORS_HEADERS });
   }
 }

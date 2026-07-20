@@ -12,42 +12,29 @@ export async function middleware(request: NextRequest) {
       status: 200,
       headers: {
         'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key',
       },
     });
   }
 
-  // 2. Allow Next.js internal files, auth login API, website integration API, and public static media files
+  // 2. Allow Next.js internal files, all API routes (/api/*), and public static media files
   if (
     pathname.startsWith('/_next') ||
-    pathname.startsWith('/api/auth/login') ||
-    pathname.startsWith('/api/website') ||
+    pathname.startsWith('/api/') ||
     PUBLIC_FILE_PATTERN.test(pathname)
   ) {
     const response = NextResponse.next();
     response.headers.set('Access-Control-Allow-Origin', '*');
-    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key');
     return response;
   }
 
   const token = request.cookies.get('vd_session_token')?.value;
-  const apiKeyHeader = request.headers.get('x-api-key') || request.headers.get('authorization');
 
-  // Allow API routes if valid API key header is provided
-  if (pathname.startsWith('/api/') && apiKeyHeader) {
-    const response = NextResponse.next();
-    response.headers.set('Access-Control-Allow-Origin', '*');
-    return response;
-  }
-
-  // 3. IF NOT AUTHENTICATED: Block non-API routes or return 401 for unauthenticated API
+  // 3. IF NOT AUTHENTICATED: Redirect non-API routes to /login
   if (!token && pathname !== '/login') {
-    if (pathname.startsWith('/api/')) {
-      return NextResponse.json({ error: 'Unauthorized. Session cookie or API Key required.' }, { status: 401 });
-    }
-
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
     return NextResponse.redirect(loginUrl);
@@ -66,7 +53,6 @@ export async function middleware(request: NextRequest) {
       const jsonStr = Buffer.from(token, 'base64').toString('utf-8');
       const session = JSON.parse(jsonStr);
 
-      // Recepción role is restricted from /guests, /rooms, /feedback
       if (session.role === 'Recepción') {
         const isBlocked = RECEPTION_BLOCKED_PATHS.some(bp => 
           pathname === bp || pathname.startsWith(`${bp}/`)
@@ -90,4 +76,3 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|icons|manifest.json|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
-
