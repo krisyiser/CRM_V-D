@@ -35,11 +35,14 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const device = useDeviceType();
 
   const [collapsed, setCollapsed] = useState(false);
-  const [profile, setProfile] = useState({ name: '', email: '', initials: 'VD' });
+  const [profile, setProfile] = useState({ name: '', email: '', role: 'Administrador', initials: 'VD' });
+
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [ready, setReady] = useState(false);
+
+
 
   // Auto-collapse sidebar on Tablet devices
   useEffect(() => {
@@ -48,7 +51,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     }
   }, [device.isTablet]);
 
-  // Fetch user session & strictly enforce authentication
+  // Fetch user session & strictly enforce authentication and RBAC
   useEffect(() => {
     if (pathname === '/login') {
       setReady(true);
@@ -60,9 +63,18 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       .then(data => {
         if (data.authenticated && data.user) {
           const user = data.user;
+          const role = user.role || 'Administrador';
+
+          // RBAC client-side route guard: Recepción role cannot access /guests, /rooms, /feedback
+          if (role === 'Recepción' && ['/guests', '/rooms', '/feedback'].some(p => pathname === p || pathname.startsWith(`${p}/`))) {
+            router.replace('/');
+            return;
+          }
+
           setProfile({
             name: user.name || user.username || 'Admin',
             email: user.email || '',
+            role,
             initials: user.initials || 'AD'
           });
           setReady(true);
@@ -74,8 +86,15 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       .catch(() => {
         window.location.href = '/login';
       });
-  }, [pathname]);
+  }, [pathname, router]);
 
+  // Filter NAV_ITEMS based on user role
+  const visibleNavItems = NAV_ITEMS.filter(item => {
+    if (profile.role === 'Recepción') {
+      return ['/', '/reservations', '/pos'].includes(item.path);
+    }
+    return true;
+  });
 
   const loadNotifications = useCallback(() => {
     apiFetch<Notification[]>(API.notifications)
@@ -96,7 +115,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey) {
-        const item = NAV_ITEMS.find(n => n.shortcut === e.key);
+        const item = visibleNavItems.find(n => n.shortcut === e.key);
         if (item) {
           e.preventDefault();
           router.push(item.path);
@@ -105,7 +124,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [router]);
+  }, [router, visibleNavItems]);
 
   // Logout handler
   const handleLogout = useCallback(async () => {
@@ -152,7 +171,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                   className="overflow-hidden text-left"
                 >
                   <h1 className="text-sm font-semibold text-[#2D2D2D] whitespace-nowrap">Vainilla & Descanso</h1>
-                  <p className="text-[9px] text-[#A68A64] font-bold uppercase tracking-widest">Lobby Concierge</p>
+                  <p className="text-[9px] text-[#A68A64] font-bold uppercase tracking-widest">
+                    {profile.role === 'Recepción' ? 'Recepción & POS' : 'Lobby Concierge'}
+                  </p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -160,7 +181,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
           {/* Navigation */}
           <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto custom-scrollbar-light">
-            {NAV_ITEMS.map(item => {
+            {visibleNavItems.map(item => {
               const active = pathname === item.path;
               return (
                 <button
@@ -190,6 +211,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
               );
             })}
           </nav>
+
 
           {/* Bottom Controls */}
           <div className="p-3 border-t border-[#E8E4D9] space-y-1">
@@ -271,7 +293,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
               </div>
               <div className="hidden md:block text-left">
                 <p className="text-sm font-semibold text-[#2D2D2D]">{profile.name}</p>
-                <p className="text-[10px] text-[#A68A64] font-bold uppercase tracking-widest">Administrador</p>
+                <p className="text-[10px] text-[#A68A64] font-bold uppercase tracking-widest">{profile.role}</p>
               </div>
             </div>
           </div>
@@ -286,7 +308,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
       {/* Mobile & Tablet Fixed Bottom Touch Bar */}
       {device.isMobile && (
         <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-[#E8E4D9] z-50 flex items-center justify-around px-2 shadow-2xl">
-          {NAV_ITEMS.map(item => {
+          {visibleNavItems.map(item => {
             const active = pathname === item.path;
             return (
               <button
@@ -303,6 +325,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           })}
         </nav>
       )}
+
 
       {/* Modals & Panels */}
       {showNotifications && (

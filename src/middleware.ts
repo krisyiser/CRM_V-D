@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
 const PUBLIC_FILE_PATTERN = /\.(png|jpg|jpeg|gif|svg|ico|css|js|webp|woff|woff2|ttf|json)$/i;
+const RECEPTION_BLOCKED_PATHS = ['/guests', '/rooms', '/feedback'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -28,6 +29,28 @@ export async function middleware(request: NextRequest) {
     const homeUrl = request.nextUrl.clone();
     homeUrl.pathname = '/';
     return NextResponse.redirect(homeUrl);
+  }
+
+  // 3. ROLE-BASED ACCESS CONTROL (RBAC)
+  if (token) {
+    try {
+      const jsonStr = Buffer.from(token, 'base64').toString('utf-8');
+      const session = JSON.parse(jsonStr);
+
+      // Recepción role is restricted from /guests, /rooms, /feedback
+      if (session.role === 'Recepción') {
+        const isBlocked = RECEPTION_BLOCKED_PATHS.some(bp => 
+          pathname === bp || pathname.startsWith(`${bp}/`)
+        );
+        if (isBlocked) {
+          const homeUrl = request.nextUrl.clone();
+          homeUrl.pathname = '/';
+          return NextResponse.redirect(homeUrl);
+        }
+      }
+    } catch {
+      // Invalid token format
+    }
   }
 
   return NextResponse.next();

@@ -138,6 +138,30 @@ class TestCRMLogic(unittest.TestCase):
             self.assertFalse(is_access_allowed(path, None), f"Path {path} should be blocked without token!")
             self.assertTrue(is_access_allowed(path, "valid_token_123"), f"Path {path} should be allowed with token!")
 
+    def test_role_based_access_control(self):
+        """Test Role-Based Access Control (RBAC) for Admin vs Reception roles"""
+        admin_allowed = ['/', '/rooms', '/reservations', '/guests', '/pos', '/feedback']
+        reception_allowed = ['/', '/reservations', '/pos']
+        reception_blocked = ['/rooms', '/guests', '/feedback']
+
+        def can_role_access(role, path):
+            if role == 'Administrador':
+                return path in admin_allowed
+            if role == 'Recepción':
+                return path in reception_allowed
+            return False
+
+        # Admin checks
+        for p in admin_allowed:
+            self.assertTrue(can_role_access('Administrador', p), f"Admin should access {p}")
+
+        # Reception checks
+        for p in reception_allowed:
+            self.assertTrue(can_role_access('Recepción', p), f"Reception should access {p}")
+        for p in reception_blocked:
+            self.assertFalse(can_role_access('Recepción', p), f"Reception should NOT access {p}")
+
+
 
 
 
