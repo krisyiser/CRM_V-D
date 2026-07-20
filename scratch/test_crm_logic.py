@@ -232,6 +232,31 @@ class TestCRMLogic(unittest.TestCase):
         avail_status = get_effective_room_status('available', has_active_today_res=False)
         self.assertEqual(avail_status, 'available')
 
+    def test_cancelled_reservation_anti_resync(self):
+        """Test that cancelled reservations are tracked and not re-imported by GitHub sync"""
+        local_reservations = [
+            {"id": "res_1", "guest_name": "Juan", "status": "Cancelled"},
+            {"id": "res_2", "guest_name": "Maria", "status": "Confirmed"}
+        ]
+        github_web_reservations = [
+            {"id": "res_1", "guest_name": "Juan", "status": "confirmed_online"},
+            {"id": "res_3", "guest_name": "Pedro", "status": "confirmed_online"}
+        ]
+
+        cancelled_ids = set(r['id'] for r in local_reservations if r.get('status') == 'Cancelled')
+
+        new_synced = []
+        for web_res in github_web_reservations:
+            if web_res['id'] in cancelled_ids:
+                continue # Do not re-add cancelled reservation
+            if not any(r['id'] == web_res['id'] for r in local_reservations):
+                new_synced.append(web_res)
+
+        # res_1 should be ignored because it was cancelled locally
+        self.assertEqual(len(new_synced), 1)
+        self.assertEqual(new_synced[0]['id'], 'res_3')
+
+
 
 
 

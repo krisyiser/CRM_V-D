@@ -4,6 +4,7 @@ import type { Reservation } from '@/types';
 
 export async function GET() {
   let reservations = await readJson<Reservation[]>('reservations.json', []);
+  const cancelledIds = await readJson<string[]>('cancelled_reservations.json', []);
 
   // Sync with website GitHub repository
   try {
@@ -11,10 +12,18 @@ export async function GET() {
     if (webReservations.length > 0) {
       let updated = false;
       webReservations.forEach(webRes => {
-        const exists = reservations.some(r => r.id === webRes.id || (webRes.external_id && r.external_id === webRes.external_id));
-        if (!exists) {
+        // Skip if this reservation was cancelled locally
+        if (cancelledIds.includes(webRes.id) || (webRes.external_id && cancelledIds.includes(webRes.external_id))) {
+          return;
+        }
+
+        const existingIndex = reservations.findIndex(r => r.id === webRes.id || (webRes.external_id && r.external_id === webRes.external_id));
+        if (existingIndex === -1) {
           reservations.push(webRes);
           updated = true;
+        } else if (reservations[existingIndex].status === 'Cancelled') {
+          // Keep cancelled status locally
+          return;
         }
       });
       if (updated) {
@@ -25,7 +34,9 @@ export async function GET() {
     console.error('[Website GitHub Sync] Error syncing website reservations:', e);
   }
 
-  return NextResponse.json(reservations);
+  // Filter out cancelled reservations for UI display
+  const activeReservations = reservations.filter(r => r.status !== 'Cancelled' && !cancelledIds.includes(r.id));
+  return NextResponse.json(activeReservations);
 }
 
 export async function POST(request: Request) {
@@ -67,8 +78,21 @@ export async function DELETE(request: Request) {
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
     const reservations = await readJson<Reservation[]>('reservations.json', []);
-    const filtered = reservations.filter(r => r.id !== id);
-    await writeJson('reservations.json', filtered);
+    const target = reservations.find(r => r.id === id || r.external_id === id);
+
+    const updated = reservations.map(r => {
+      if (r.id === id || (target?.external_id && r.external_id === target.external_id)) {
+        return { ...r, status: 'Cancelled' };
+      }
+      return r;
+    });
+
+    const cancelledIds = await readJson<string[]>('cancelled_reservations.json', []);
+    if (!cancelledIds.includes(id)) cancelledIds.push(id);
+    if (target?.external_id && !cancelledIds.includes(target.external_id)) cancelledIds.push(target.external_id);
+    await writeJson('cancelled_reservations.json', cancelledIds);
+
+    await writeJson('reservations.json', updated);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
