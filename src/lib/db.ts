@@ -139,12 +139,14 @@ export async function writeJson<T>(filename: string, data: T): Promise<void> {
  * Fetches online reservations created by guests on the public website's GitHub repository.
  */
 export async function fetchWebsiteReservationsFromGitHub(): Promise<Reservation[]> {
-  const websiteRepo = process.env.WEBSITE_GITHUB_REPO || process.env.GITHUB_REPO || 'krisyiser/CRM_V-D';
+  const websiteRepo = process.env.WEBSITE_GITHUB_REPO || 'krisyiser/Vainilla-y-Descanso';
   const ghToken = process.env.GITHUB_TOKEN;
 
   const pathsToTry = [
+    `https://raw.githubusercontent.com/${websiteRepo}/main/data/db.json`,
     `https://raw.githubusercontent.com/${websiteRepo}/main/data/web_reservations.json`,
     `https://raw.githubusercontent.com/${websiteRepo}/main/data/reservations.json`,
+    `https://api.github.com/repos/${websiteRepo}/contents/data/db.json`,
     `https://api.github.com/repos/${websiteRepo}/contents/data/web_reservations.json`,
     `https://api.github.com/repos/${websiteRepo}/contents/data/reservations.json`
   ];
@@ -159,28 +161,35 @@ export async function fetchWebsiteReservationsFromGitHub(): Promise<Reservation[
       if (res.ok) {
         const text = await res.text();
         const parsed = JSON.parse(text);
-        if (Array.isArray(parsed)) {
-          return parsed.map((item: any, index: number) => ({
-            id: item.id || `web_res_${index}_${Date.now()}`,
-            room_id: String(item.room_id || item.roomId || '101'),
-            guest_id: item.guest_id || null,
-            guest_name: item.guest_name || item.guestName || item.name || 'Huésped Web',
-            check_in: item.check_in || item.checkIn || (item.dates?.split(' - ')[0] ?? ''),
-            check_out: item.check_out || item.checkOut || (item.dates?.split(' - ')[1] ?? ''),
-            dates: item.dates || `${item.check_in || item.checkIn} - ${item.check_out || item.checkOut}`,
-            total_price: Number(item.total_price || item.totalPrice || item.total || 0),
-            notes: item.notes ? `Reserva Web | ${item.notes}` : 'Reserva Web desde Sitio Oficial',
-            payment_status: item.payment_status || 'paid',
-            status: item.status || 'Confirmed',
-            external_id: item.external_id || item.id || 'WEB_SITE',
-            created_at: item.created_at || new Date().toISOString()
-          }));
+        const rawList = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.reservations) ? parsed.reservations : []);
+        
+        if (rawList.length > 0) {
+          return rawList.map((item: any, index: number) => {
+            const checkIn = item.check_in || item.checkIn || (item.dates?.split(' - ')[0] ?? '');
+            const checkOut = item.check_out || item.checkOut || (item.dates?.split(' - ')[1] ?? '');
+            return {
+              id: item.id || item.reservation_id || `web_res_${index}_${Date.now()}`,
+              room_id: String(item.room_id || item.roomId || '101'),
+              guest_id: item.guest_id || null,
+              guest_name: item.guest_name || item.guestName || item.name || 'Huésped Web',
+              check_in: checkIn,
+              check_out: checkOut,
+              dates: item.dates || `${checkIn} - ${checkOut}`,
+              total_price: Number(item.total_price || item.totalPrice || item.total || 0),
+              notes: item.notes ? `Reserva Web | ${item.notes}` : 'Reserva Web desde Sitio Oficial',
+              payment_status: item.payment_status || 'paid',
+              status: item.status === 'confirmed_online' || item.status === 'pending_sync' ? 'Confirmed' : (item.status || 'Confirmed'),
+              external_id: item.reservation_id || item.id || 'WEB_SITE',
+              created_at: item.created_at || new Date().toISOString()
+            };
+          });
         }
       }
     } catch (e) {
-      // Continue to next path
+      // Continue to next URL fallback
     }
   }
 
   return [];
 }
+

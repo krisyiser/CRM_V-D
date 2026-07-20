@@ -1,0 +1,7 @@
+C:\Users\YERSI\.gemini\antigravity-ide\scratch\CRM_V-D\src-tauri\target\debug\deps\debug_unreachable-3351dca6712d6be5.d: C:\Users\YERSI\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\new_debug_unreachable-1.0.6\src\lib.rs
+
+C:\Users\YERSI\.gemini\antigravity-ide\scratch\CRM_V-D\src-tauri\target\debug\deps\libdebug_unreachable-3351dca6712d6be5.rlib: C:\Users\YERSI\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\new_debug_unreachable-1.0.6\src\lib.rs
+
+C:\Users\YERSI\.gemini\antigravity-ide\scratch\CRM_V-D\src-tauri\target\debug\deps\libdebug_unreachable-3351dca6712d6be5.rmeta: C:\Users\YERSI\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\new_debug_unreachable-1.0.6\src\lib.rs
+
+C:\Users\YERSI\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\new_debug_unreachable-1.0.6\src\lib.rs:

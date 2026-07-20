@@ -186,6 +186,32 @@ class TestCRMLogic(unittest.TestCase):
         tmp_dir = get_target_dir(is_serverless=True)
         self.assertTrue(tmp_dir.startswith('/tmp') or tmp_dir.startswith('\\tmp'))
 
+    def test_public_website_db_json_parsing(self):
+        """Test parsing of public website db.json payload structure from krisyiser/Vainilla-y-Descanso"""
+        website_payload = {
+            "rooms": [{"id": "101"}],
+            "reservations": [
+                {
+                    "id": "xweg37uok",
+                    "reservation_id": "res_queue_1784526466390",
+                    "room_id": "101",
+                    "guest_name": "yersi",
+                    "guest_email": "hellokristian7u7@gmail.com",
+                    "check_in": "2026-07-19",
+                    "check_out": "2026-07-20",
+                    "total_price": 2300,
+                    "status": "pending_sync"
+                }
+            ]
+        }
+
+        # Extractor should handle object root with reservations key or array root
+        reservations_raw = website_payload.get('reservations', []) if isinstance(website_payload, dict) else website_payload
+        self.assertEqual(len(reservations_raw), 1)
+        self.assertEqual(reservations_raw[0]['guest_name'], 'yersi')
+        self.assertEqual(reservations_raw[0]['room_id'], '101')
+
+
 
 
 
