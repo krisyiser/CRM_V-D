@@ -1,27 +1,29 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
+const PUBLIC_FILE_PATTERN = /\.(png|jpg|jpeg|gif|svg|ico|css|js|webp|woff|woff2|ttf|json)$/i;
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow static assets, favicon, logos, public files and auth APIs
+  // Allow Next.js internal files, auth login API, and public static media files
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/auth/login') ||
-    pathname.includes('.')
+    PUBLIC_FILE_PATTERN.test(pathname)
   ) {
     return NextResponse.next();
   }
 
   const token = request.cookies.get('vd_session_token')?.value;
 
-  // If user has no session cookie and tries to access protected page
+  // 1. IF NOT AUTHENTICATED: Block all routes and FORCE redirect to /login
   if (!token && pathname !== '/login') {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
     return NextResponse.redirect(loginUrl);
   }
 
-  // If user has active session and accesses /login
+  // 2. IF AUTHENTICATED: Redirect /login back to dashboard /
   if (token && pathname === '/login') {
     const homeUrl = request.nextUrl.clone();
     homeUrl.pathname = '/';

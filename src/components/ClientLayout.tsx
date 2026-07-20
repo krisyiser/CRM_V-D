@@ -48,8 +48,13 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
     }
   }, [device.isTablet]);
 
-  // Fetch user session
+  // Fetch user session & strictly enforce authentication
   useEffect(() => {
+    if (pathname === '/login') {
+      setReady(true);
+      return;
+    }
+
     fetch('/api/auth/me')
       .then(res => res.json())
       .then(data => {
@@ -60,11 +65,17 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             email: user.email || '',
             initials: user.initials || 'AD'
           });
+          setReady(true);
+        } else {
+          // STRICT REDIRECT: User has no valid session -> FORCE /login
+          window.location.href = '/login';
         }
-        setReady(true);
       })
-      .catch(() => setReady(true));
-  }, []);
+      .catch(() => {
+        window.location.href = '/login';
+      });
+  }, [pathname]);
+
 
   const loadNotifications = useCallback(() => {
     apiFetch<Notification[]>(API.notifications)

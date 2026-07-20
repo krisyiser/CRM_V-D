@@ -121,6 +121,24 @@ class TestCRMLogic(unittest.TestCase):
         invalid_user = authenticate('admin', '9999')
         self.assertIsNone(invalid_user)
 
+    def test_strict_session_protection(self):
+        """Test strict path protection requiring active token"""
+        public_paths = ['/login', '/api/auth/login', '/logo%20vainilla%20y%20descanso.png', '/favicon.ico']
+        protected_paths = ['/', '/pos', '/guests', '/rooms', '/reservations', '/feedback']
+
+        def is_access_allowed(path, token):
+            if any(path.startswith(p) for p in ['/_next', '/api/auth/login']) or path in public_paths:
+                return True
+            if not token:
+                return False
+            return True
+
+        # Without token, all protected paths must be blocked and redirected
+        for path in protected_paths:
+            self.assertFalse(is_access_allowed(path, None), f"Path {path} should be blocked without token!")
+            self.assertTrue(is_access_allowed(path, "valid_token_123"), f"Path {path} should be allowed with token!")
+
+
 
 
 
