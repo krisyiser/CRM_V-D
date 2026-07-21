@@ -8,6 +8,7 @@ import { toast } from '@/components/Toast';
 import GuestForm from './GuestForm';
 import StayOptions from './StayOptions';
 import ChargeSummary from './ChargeSummary';
+import { getTodayDateStr, isReservationActiveOnDate } from '@/lib/dateUtils';
 
 interface Props {
   isOpen: boolean;
@@ -60,20 +61,23 @@ export default function GuestRegistrationModal({ isOpen, onClose, room, reservat
         try {
           const data = await apiFetch<Room[]>(API.rooms);
           setRooms(data);
+          const resData = await apiFetch<Reservation[]>(API.reservations).catch(() => []);
+          const targetRoomId = room?.id || formData.roomId;
+          const activeRes = reservation || resData.find(r => r && String(r.room_id) === String(targetRoomId) && isReservationActiveOnDate(r, getTodayDateStr()));
 
-          if (reservation) {
-            const ci = reservation.check_in || (reservation.dates?.split(' - ')[0] ?? '');
-            const co = reservation.check_out || (reservation.dates?.split(' - ')[1] ?? '');
+          if (activeRes) {
+            const ci = activeRes.check_in || (activeRes.dates?.split(' - ')[0] ?? '');
+            const co = activeRes.check_out || (activeRes.dates?.split(' - ')[1] ?? '');
             setFormData(prev => ({
               ...prev,
-              name: reservation.guest_name || '',
-              phone: (reservation as any).guest_phone || (reservation as any).phone || '',
-              email: (reservation as any).guest_email || (reservation as any).email || '',
+              name: activeRes.guest_name || prev.name,
+              phone: (activeRes as any).guest_phone || (activeRes as any).phone || prev.phone,
+              email: (activeRes as any).guest_email || (activeRes as any).email || prev.email,
               checkIn: ci,
               checkOut: co,
-              roomId: reservation.room_id || room?.id || (data[0]?.id ?? '101'),
-              notes: reservation.notes || '',
-              total: reservation.total_price || prev.total
+              roomId: activeRes.room_id || targetRoomId || (data[0]?.id ?? '101'),
+              notes: activeRes.notes || prev.notes,
+              total: activeRes.total_price || prev.total
             }));
           } else if (room) {
             setFormData(prev => ({ ...prev, roomId: room.id }));
