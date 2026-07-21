@@ -21,11 +21,13 @@ export async function OPTIONS() {
   });
 }
 
+import { getTodayDateStr } from '@/lib/dateUtils';
+
 export async function GET() {
   try {
     const rooms = await readJson<Room[]>('rooms.json', []);
     const reservations = await readJson<Reservation[]>('reservations.json', []);
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayDateStr();
 
     const updatedRooms = rooms.map(room => {
       if (room.status === 'maintenance' || room.status === 'cleaning') return room;
@@ -82,7 +84,7 @@ export async function PATCH(request: Request) {
 
     // If changing room status to 'available', clear/cancel any active reservations for today for that room
     if (status === 'available') {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayDateStr();
       let reservations = await readJson<Reservation[]>('reservations.json', []);
       if (Array.isArray(reservations)) {
         let changed = false;

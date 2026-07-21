@@ -8,6 +8,7 @@ import RoomDetailPanel from '@/components/dashboard/RoomDetailPanel';
 import GuestRegistrationModal from '@/components/dashboard/GuestRegistrationModal';
 import CheckoutModal from '@/components/dashboard/CheckoutModal';
 import StayReportModal from '@/components/dashboard/StayReportModal';
+import { getTodayDateStr } from '@/lib/dateUtils';
 
 export default function DashboardPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -45,7 +46,7 @@ export default function DashboardPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayDateStr();
   const todayReservations = reservations.filter(r => {
     if (!r || r.status === 'Cancelled' || r.status === 'cancelled') return false;
     const checkIn = r.check_in || (r.dates?.split(' - ')[0] ?? '');

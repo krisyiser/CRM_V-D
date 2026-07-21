@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { BedDouble, Search, Loader2 } from 'lucide-react';
 import { apiFetch, API, registerCancelledReservationIdInStorage } from '@/lib/api';
 import type { Room, Reservation } from '@/types';
+import { getTodayDateStr } from '@/lib/dateUtils';
 
 export default function RoomsPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -30,7 +31,7 @@ export default function RoomsPage() {
     loadData();
   }, []);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayDateStr();
   const filtered = rooms.filter(room =>
     room.name.toLowerCase().includes(search.toLowerCase()) ||
     room.id.toLowerCase().includes(search.toLowerCase())
