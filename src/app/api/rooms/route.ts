@@ -28,7 +28,6 @@ export async function GET() {
     const today = new Date().toISOString().split('T')[0];
 
     const updatedRooms = rooms.map(room => {
-      // Preserve explicit manual maintenance or cleaning states
       if (room.status === 'maintenance' || room.status === 'cleaning') return room;
 
       const hasActiveReservation = reservations.some(r => {
@@ -47,14 +46,13 @@ export async function GET() {
         return String(r.room_id) === String(room.id) && today >= checkIn && today <= checkOut;
       });
 
-      // If room was manually marked 'available' in rooms.json, prioritize that unless there's an active non-cancelled stay
       let calculatedStatus: Room['status'] = 'available';
-      if (hasActiveReservation && room.status !== 'available') {
+      if (room.status === 'occupied') {
         calculatedStatus = 'occupied';
-      } else if (!hasActiveReservation) {
-        calculatedStatus = room.status || 'available';
+      } else if (hasActiveReservation) {
+        calculatedStatus = 'reserved';
       } else {
-        calculatedStatus = room.status;
+        calculatedStatus = room.status || 'available';
       }
 
       return {

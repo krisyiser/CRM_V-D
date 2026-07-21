@@ -19,6 +19,7 @@ export default function DashboardPage() {
   
   const [showCheckIn, setShowCheckIn] = useState(false);
   const [checkInRoom, setCheckInRoom] = useState<Room | null>(null);
+  const [checkInReservation, setCheckInReservation] = useState<Reservation | null>(null);
 
   const [showCheckout, setShowCheckout] = useState(false);
   const [checkoutRoom, setCheckoutRoom] = useState<Room | null>(null);
@@ -51,14 +52,15 @@ export default function DashboardPage() {
     const checkOut = r.check_out || (r.dates?.split(' - ')[1] ?? '');
     return today >= checkIn && today <= checkOut;
   });
-  const occupiedCount = rooms.filter(r => r.status === 'occupied').length;
-  const occupancy = rooms.length > 0 ? Math.round((occupiedCount / rooms.length) * 100) : 0;
-  const todayRevenue = todayReservations.reduce((sum, r) => sum + (r.total_price || 0), 0);
 
+  const occupiedCount = rooms.filter(r => r.status === 'occupied').length;
+  const reservedCount = rooms.filter(r => r.status === 'reserved').length;
+  const occupancy = rooms.length > 0 ? Math.round(((occupiedCount + reservedCount) / rooms.length) * 100) : 0;
+  const todayRevenue = todayReservations.reduce((sum, r) => sum + (r.total_price || 0), 0);
 
   const stats = [
     { label: 'Habitaciones Ocupadas', value: `${occupiedCount}/${rooms.length}`, icon: <BedDouble size={20} />, color: 'bg-[#A68A64]' },
-    { label: 'Reservaciones Hoy', value: todayReservations.length, icon: <CalendarCheck size={20} />, color: 'bg-[#8E9B8E]' },
+    { label: 'Reservaciones Hoy', value: todayReservations.length, icon: <CalendarCheck size={20} />, color: 'bg-[#5B7B9A]' },
     { label: 'Huéspedes Activos', value: todayReservations.length, icon: <Users size={20} />, color: 'bg-[#C2A88D]' },
     { label: 'Revenue Hoy', value: `$${todayRevenue.toLocaleString('es-MX')}`, icon: <DollarSign size={20} />, color: 'bg-[#6B8F71]' },
   ];
@@ -66,7 +68,9 @@ export default function DashboardPage() {
   const getStatusStyle = (status: string) => {
     switch (status) {
       case 'occupied':    return { bg: 'bg-[#A68A64]/10 border-[#A68A64]/30', dot: 'bg-[#A68A64]', text: 'Ocupada' };
+      case 'reserved':    return { bg: 'bg-[#5B7B9A]/15 border-[#5B7B9A]/40', dot: 'bg-[#5B7B9A]', text: 'Reservada Hoy' };
       case 'maintenance': return { bg: 'bg-amber-500/10 border-amber-500/30', dot: 'bg-amber-500', text: 'Mantenimiento' };
+      case 'cleaning':    return { bg: 'bg-blue-500/10 border-blue-500/30', dot: 'bg-blue-500', text: 'Limpieza' };
       default:            return { bg: 'bg-[#8E9B8E]/10 border-[#8E9B8E]/30', dot: 'bg-[#8E9B8E]', text: 'Disponible' };
     }
   };
@@ -129,7 +133,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {rooms.map(room => {
             const effectiveStatus = room.status || 'available';
-            const todayRes = effectiveStatus === 'occupied' ? todayReservations.find(r => String(r.room_id) === String(room.id)) : null;
+            const todayRes = todayReservations.find(r => String(r.room_id) === String(room.id));
             const st = getStatusStyle(effectiveStatus);
 
             return (
@@ -153,17 +157,24 @@ export default function DashboardPage() {
                     {st.text}
                   </p>
                   {todayRes && (
-                    <p className="text-[10px] text-[#A68A64] font-medium mt-1 truncate">
-                      {todayRes.guest_name}
+                    <p className="text-[10px] text-[#5B7B9A] font-bold mt-1 truncate">
+                      Huésped: {todayRes.guest_name}
                     </p>
                   )}
                 </div>
-                {effectiveStatus === 'available' && (
+                {(effectiveStatus === 'available' || effectiveStatus === 'reserved') && (
                   <button
-                    onClick={(e) => { e.stopPropagation(); setCheckInRoom(room); setShowCheckIn(true); }}
-                    className="mt-3 w-full py-2 bg-[#8E9B8E] text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#7A8A7A] transition-all flex items-center justify-center gap-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCheckInRoom(room);
+                      setCheckInReservation(todayRes || null);
+                      setShowCheckIn(true);
+                    }}
+                    className={`mt-3 w-full py-2 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1 ${
+                      effectiveStatus === 'reserved' ? 'bg-[#5B7B9A] hover:bg-[#4A6A89]' : 'bg-[#8E9B8E] hover:bg-[#7A8A7A]'
+                    }`}
                   >
-                    <Plus size={12} /> Check-In
+                    <Plus size={12} /> Check-In {todayRes ? `(${todayRes.guest_name.split(' ')[0]})` : ''}
                   </button>
                 )}
               </motion.div>
@@ -194,8 +205,9 @@ export default function DashboardPage() {
       {showCheckIn && checkInRoom && (
         <GuestRegistrationModal
           isOpen={showCheckIn}
-          onClose={() => { setShowCheckIn(false); setCheckInRoom(null); }}
+          onClose={() => { setShowCheckIn(false); setCheckInRoom(null); setCheckInReservation(null); }}
           room={checkInRoom}
+          reservation={checkInReservation}
           onSuccess={fetchData}
         />
       )}

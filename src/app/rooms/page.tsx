@@ -55,6 +55,7 @@ export default function RoomsPage() {
 
   const statusMap: Record<string, { label: string; badge: string }> = {
     available:    { label: 'Disponible',    badge: 'bg-[#8E9B8E]/10 text-[#8E9B8E] border-[#8E9B8E]/20' },
+    reserved:     { label: 'Reservada Hoy', badge: 'bg-[#5B7B9A]/15 text-[#5B7B9A] border-[#5B7B9A]/30' },
     occupied:     { label: 'Ocupada',       badge: 'bg-[#A68A64]/10 text-[#A68A64] border-[#A68A64]/20' },
     maintenance:  { label: 'Mantenimiento', badge: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
     cleaning:     { label: 'Limpieza',      badge: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
@@ -151,9 +152,11 @@ export default function RoomsPage() {
                   </div>
                 </div>
 
-                {activeRes && effectiveStatus === 'occupied' && (
-                  <div className="bg-[#A68A64]/5 border border-[#A68A64]/20 rounded-xl p-3 text-left mb-4">
-                    <p className="text-[9px] font-bold text-[#A68A64] uppercase tracking-widest">Huésped Actual</p>
+                {activeRes && (effectiveStatus === 'occupied' || effectiveStatus === 'reserved') && (
+                  <div className={`border rounded-xl p-3 text-left mb-4 ${effectiveStatus === 'reserved' ? 'bg-[#5B7B9A]/5 border-[#5B7B9A]/20' : 'bg-[#A68A64]/5 border-[#A68A64]/20'}`}>
+                    <p className={`text-[9px] font-bold uppercase tracking-widest ${effectiveStatus === 'reserved' ? 'text-[#5B7B9A]' : 'text-[#A68A64]'}`}>
+                      {effectiveStatus === 'reserved' ? 'Huésped Reservado Hoy' : 'Huésped Actual'}
+                    </p>
                     <p className="text-sm font-semibold text-[#2D2D2D] mt-0.5">{activeRes.guest_name}</p>
                     <p className="text-[10px] text-[#8C8C8C] mt-0.5">{activeRes.dates}</p>
                   </div>

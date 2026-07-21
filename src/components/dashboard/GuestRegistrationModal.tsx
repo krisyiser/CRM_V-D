@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CheckCircle2 } from 'lucide-react';
 import { API, apiFetch } from '@/lib/api';
-import type { Room, Guest } from '@/types';
+import type { Room, Guest, Reservation } from '@/types';
 import { toast } from '@/components/Toast';
 import GuestForm from './GuestForm';
 import StayOptions from './StayOptions';
@@ -13,10 +13,11 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   room?: Room | null;
+  reservation?: Reservation | null;
   onSuccess?: () => void;
 }
 
-export default function GuestRegistrationModal({ isOpen, onClose, room, onSuccess }: Props) {
+export default function GuestRegistrationModal({ isOpen, onClose, room, reservation, onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [fetchingRooms, setFetchingRooms] = useState(false);
@@ -58,12 +59,27 @@ export default function GuestRegistrationModal({ isOpen, onClose, room, onSucces
         setFetchingRooms(true);
         try {
           const data = await apiFetch<Room[]>(API.rooms);
-          const available = data.filter(r => r.status === 'available');
-          setRooms(available);
-          if (room) {
+          setRooms(data);
+
+          if (reservation) {
+            const ci = reservation.check_in || (reservation.dates?.split(' - ')[0] ?? '');
+            const co = reservation.check_out || (reservation.dates?.split(' - ')[1] ?? '');
+            setFormData(prev => ({
+              ...prev,
+              name: reservation.guest_name || '',
+              phone: (reservation as any).guest_phone || (reservation as any).phone || '',
+              email: (reservation as any).guest_email || (reservation as any).email || '',
+              checkIn: ci,
+              checkOut: co,
+              roomId: reservation.room_id || room?.id || (data[0]?.id ?? '101'),
+              notes: reservation.notes || '',
+              total: reservation.total_price || prev.total
+            }));
+          } else if (room) {
             setFormData(prev => ({ ...prev, roomId: room.id }));
-          } else if (available.length > 0) {
-            setFormData(prev => ({ ...prev, roomId: available[0].id }));
+          } else if (data.length > 0) {
+            const available = data.filter(r => r.status === 'available');
+            setFormData(prev => ({ ...prev, roomId: available[0]?.id || data[0].id }));
           }
 
           const settings = await apiFetch<Record<string, string>>(API.settings);
@@ -78,7 +94,7 @@ export default function GuestRegistrationModal({ isOpen, onClose, room, onSucces
       };
       loadData();
     }
-  }, [isOpen, room]);
+  }, [isOpen, room, reservation]);
 
   const getPriceForDate = (dateStr: string, roomId: string, forceHigh: boolean) => {
     if (!dateStr) return 0;
