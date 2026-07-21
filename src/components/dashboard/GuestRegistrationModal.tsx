@@ -181,15 +181,10 @@ export default function GuestRegistrationModal({ isOpen, onClose, room, reservat
         })
       });
 
-      if (formData.checkIn) {
-        const todayLocalStr = new Date().toISOString().split('T')[0];
-        if (formData.checkIn <= todayLocalStr) {
-          await apiFetch(API.rooms, {
-            method: 'PATCH',
-            body: JSON.stringify({ id: formData.roomId, status: 'occupied' })
-          });
-        }
-      }
+      await apiFetch(API.rooms, {
+        method: 'PATCH',
+        body: JSON.stringify({ id: formData.roomId, status: 'occupied' })
+      });
 
       toast.success('Check-in completado exitosamente.');
       onClose();

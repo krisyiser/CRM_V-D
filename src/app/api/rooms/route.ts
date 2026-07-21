@@ -83,9 +83,7 @@ export async function PATCH(request: Request) {
         const remainingReservations = reservations.filter(r => {
           if (!r) return false;
           if (String(r.room_id) === roomIdStr) {
-            const checkIn = r.check_in || (r.dates?.split(' - ')[0] ?? '');
-            const checkOut = r.check_out || (r.dates?.split(' - ')[1] ?? '');
-            if (today >= checkIn && today <= checkOut) {
+            if (isReservationActiveOnDate(r, today)) {
               changed = true;
               registerDeletedReservationId(r.id, r.external_id);
               deleteWebsiteReservationFromGitHub(r.id, r.external_id || undefined).catch(() => {});
