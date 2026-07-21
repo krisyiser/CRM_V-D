@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readJson, writeJson, registerDeletedReservationId, deleteWebsiteReservationFromGitHub } from '@/lib/db';
+import { readJson, writeJson, registerDeletedReservationId, deleteWebsiteReservationFromGitHub, fetchWebsiteReservationsFromGitHub } from '@/lib/db';
 import type { Reservation, Guest } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -25,6 +25,44 @@ export async function GET() {
   try {
     let reservations = await readJson<Reservation[]>('reservations.json', []);
     if (!Array.isArray(reservations)) reservations = [];
+
+    // Also fetch online website reservations queued on Vainilla-y-Descanso db.json
+    try {
+      const websiteRes = await fetchWebsiteReservationsFromGitHub();
+      if (Array.isArray(websiteRes) && websiteRes.length > 0) {
+        let addedCount = 0;
+        for (const wRes of websiteRes) {
+          if (!wRes) continue;
+          const wId = String(wRes.id || '').trim().toLowerCase();
+          const wExtId = String(wRes.external_id || '').trim().toLowerCase();
+
+          const exists = reservations.some(r => {
+            if (!r) return false;
+            const rId = String(r.id || '').trim().toLowerCase();
+            const rExtId = String(r.external_id || '').trim().toLowerCase();
+
+            return (
+              (wId && rId === wId) ||
+              (wExtId && rExtId === wExtId) ||
+              (wId && rExtId === wId) ||
+              (wExtId && rId === wExtId) ||
+              (String(r.room_id) === String(wRes.room_id) && r.check_in === wRes.check_in && r.check_out === wRes.check_out && r.guest_name === wRes.guest_name)
+            );
+          });
+
+          if (!exists) {
+            reservations.push(wRes);
+            addedCount++;
+          }
+        }
+
+        if (addedCount > 0) {
+          await writeJson('reservations.json', reservations);
+        }
+      }
+    } catch (webErr) {
+      console.warn('[GET /api/reservations] Could not sync website reservations:', webErr);
+    }
 
     // Filter out cancelled reservations for UI display
     const activeReservations = reservations.filter(r =>
