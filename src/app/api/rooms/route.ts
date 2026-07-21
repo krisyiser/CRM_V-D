@@ -21,12 +21,15 @@ export async function OPTIONS() {
   });
 }
 
-import { getTodayDateStr } from '@/lib/dateUtils';
+import { getTodayDateStr, isReservationActiveOnDate } from '@/lib/dateUtils';
+import { fetchWebsiteReservationsFromGitHub } from '@/lib/db';
 
 export async function GET() {
   try {
     const rooms = await readJson<Room[]>('rooms.json', []);
-    const reservations = await readJson<Reservation[]>('reservations.json', []);
+    const localRes = await readJson<Reservation[]>('reservations.json', []);
+    const websiteRes = await fetchWebsiteReservationsFromGitHub().catch(() => []);
+    const reservations = [...localRes, ...websiteRes];
     const today = getTodayDateStr();
 
     const updatedRooms = rooms.map(room => {
@@ -34,18 +37,7 @@ export async function GET() {
 
       const hasActiveReservation = reservations.some(r => {
         if (!r) return false;
-        const statusLower = String(r.status || '').toLowerCase();
-        if (
-          statusLower === 'cancelled' ||
-          statusLower === 'checkedout' ||
-          statusLower === 'checked_out' ||
-          statusLower === 'completed'
-        ) {
-          return false;
-        }
-        const checkIn = r.check_in || (r.dates?.split(' - ')[0] ?? '');
-        const checkOut = r.check_out || (r.dates?.split(' - ')[1] ?? '');
-        return String(r.room_id) === String(room.id) && today >= checkIn && today <= checkOut;
+        return String(r.room_id) === String(room.id) && isReservationActiveOnDate(r, today);
       });
 
       let calculatedStatus: Room['status'] = 'available';

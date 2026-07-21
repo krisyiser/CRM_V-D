@@ -8,7 +8,7 @@ import RoomDetailPanel from '@/components/dashboard/RoomDetailPanel';
 import GuestRegistrationModal from '@/components/dashboard/GuestRegistrationModal';
 import CheckoutModal from '@/components/dashboard/CheckoutModal';
 import StayReportModal from '@/components/dashboard/StayReportModal';
-import { getTodayDateStr } from '@/lib/dateUtils';
+import { getTodayDateStr, isReservationActiveOnDate } from '@/lib/dateUtils';
 
 export default function DashboardPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -47,12 +47,7 @@ export default function DashboardPage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const today = getTodayDateStr();
-  const todayReservations = reservations.filter(r => {
-    if (!r || r.status === 'Cancelled' || r.status === 'cancelled') return false;
-    const checkIn = r.check_in || (r.dates?.split(' - ')[0] ?? '');
-    const checkOut = r.check_out || (r.dates?.split(' - ')[1] ?? '');
-    return today >= checkIn && today <= checkOut;
-  });
+  const todayReservations = reservations.filter(r => isReservationActiveOnDate(r, today));
 
   const occupiedCount = rooms.filter(r => r.status === 'occupied').length;
   const reservedCount = rooms.filter(r => r.status === 'reserved').length;

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { BedDouble, Search, Loader2 } from 'lucide-react';
 import { apiFetch, API, registerCancelledReservationIdInStorage } from '@/lib/api';
 import type { Room, Reservation } from '@/types';
-import { getTodayDateStr } from '@/lib/dateUtils';
+import { getTodayDateStr, isReservationActiveOnDate } from '@/lib/dateUtils';
 
 export default function RoomsPage() {
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -38,21 +38,7 @@ export default function RoomsPage() {
   );
 
   const getActiveReservation = (roomId: string) =>
-    reservations.find(r => {
-      if (!r) return false;
-      const statusLower = String(r.status || '').toLowerCase();
-      if (
-        statusLower === 'cancelled' ||
-        statusLower === 'checkedout' ||
-        statusLower === 'checked_out' ||
-        statusLower === 'completed'
-      ) {
-        return false;
-      }
-      const checkIn = r.check_in || (r.dates?.split(' - ')[0] ?? '');
-      const checkOut = r.check_out || (r.dates?.split(' - ')[1] ?? '');
-      return String(r.room_id) === String(roomId) && today >= checkIn && today <= checkOut;
-    });
+    reservations.find(r => r && String(r.room_id) === String(roomId) && isReservationActiveOnDate(r, today));
 
   const statusMap: Record<string, { label: string; badge: string }> = {
     available:    { label: 'Disponible',    badge: 'bg-[#8E9B8E]/10 text-[#8E9B8E] border-[#8E9B8E]/20' },
