@@ -8,10 +8,39 @@ export class ApiError extends Error {
 }
 
 const DEFAULT_API_KEY = 'vd_crm_secret_key_2026';
+const LOCAL_STORAGE_CANCELLED_KEY = 'vd_cancelled_reservation_ids';
+
+export function getCancelledReservationIdsFromStorage(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_CANCELLED_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr.map(id => String(id).trim().toLowerCase()) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function registerCancelledReservationIdInStorage(...ids: (string | undefined | null)[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    const current = getCancelledReservationIdsFromStorage();
+    for (const id of ids) {
+      if (!id) continue;
+      const clean = String(id).trim().toLowerCase();
+      if (clean) current.add(clean);
+    }
+    localStorage.setItem(LOCAL_STORAGE_CANCELLED_KEY, JSON.stringify(Array.from(current)));
+  } catch {
+    // Ignore storage quota errors
+  }
+}
 
 /**
  * Fetch wrapper for all CRM API endpoints.
- * Hits Next.js Route Handlers at /api/{endpoint} with credentials, API Key, and no-store policy.
+ * Hits Next.js Route Handlers at /api/{endpoint} with credentials, API Key, no-store policy,
+ * and client-side tombstone persistence for Netlify serverless deployment.
  */
 export async function apiFetch<T>(
   endpoint: string,
@@ -19,6 +48,20 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint.slice(1) : endpoint;
   const url = cleanEndpoint.startsWith('api/') ? `/${cleanEndpoint}` : `/api/${cleanEndpoint}`;
+
+  const method = (options?.method || 'GET').toUpperCase();
+
+  // If DELETE call on reservations endpoint, register tombstone in localStorage
+  if (method === 'DELETE' && cleanEndpoint.includes('reservations')) {
+    try {
+      if (options?.body) {
+        const parsedBody = JSON.parse(options.body as string);
+        registerCancelledReservationIdInStorage(parsedBody.id, parsedBody.external_id, parsedBody.reservation_id);
+      }
+    } catch {
+      // Ignore JSON parse errors
+    }
+  }
 
   const res = await fetch(url, {
     cache: 'no-store',
@@ -39,7 +82,33 @@ export async function apiFetch<T>(
   }
 
   const text = await res.text();
-  return text ? JSON.parse(text) : (null as any);
+  const data = text ? JSON.parse(text) : (null as any);
+
+  // Filter reservations response against client-side tombstones
+  if ((method === 'GET' || !options?.method) && cleanEndpoint.includes('reservations')) {
+    const tombstones = getCancelledReservationIdsFromStorage();
+    if (tombstones.size > 0) {
+      if (Array.isArray(data)) {
+        return data.filter((r: any) => {
+          if (!r) return false;
+          if (r.status === 'Cancelled' || r.status === 'cancelled') return false;
+          const rId = String(r.id || '').trim().toLowerCase();
+          const rExtId = String(r.external_id || '').trim().toLowerCase();
+          return !tombstones.has(rId) && !tombstones.has(rExtId);
+        }) as any as T;
+      } else if (data && Array.isArray(data.reservations)) {
+        data.reservations = data.reservations.filter((r: any) => {
+          if (!r) return false;
+          if (r.status === 'Cancelled' || r.status === 'cancelled') return false;
+          const rId = String(r.id || '').trim().toLowerCase();
+          const rExtId = String(r.external_id || '').trim().toLowerCase();
+          return !tombstones.has(rId) && !tombstones.has(rExtId);
+        });
+      }
+    }
+  }
+
+  return data;
 }
 
 /** Typed endpoint catalog */

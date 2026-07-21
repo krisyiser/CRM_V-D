@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Search, BedDouble, X, CalendarCheck, Trash2, Loader2 } from 'lucide-react';
-import { apiFetch, API } from '@/lib/api';
+import { apiFetch, API, registerCancelledReservationIdInStorage } from '@/lib/api';
 import type { Room, Reservation } from '@/types';
 
 export default function ReservationsPage() {
@@ -65,12 +65,17 @@ export default function ReservationsPage() {
   const handleCancel = async (id: string) => {
     try {
       const cleanId = String(id).trim().toLowerCase();
+      registerCancelledReservationIdInStorage(cleanId);
       // Optimistic UI update: remove from state immediately for 0ms visual latency
       setReservations(prev => prev.filter(r => {
         if (!r) return false;
         const rId = String(r.id || '').trim().toLowerCase();
         const rExtId = String(r.external_id || '').trim().toLowerCase();
-        return rId !== cleanId && rExtId !== cleanId;
+        if (rId === cleanId || rExtId === cleanId) {
+          registerCancelledReservationIdInStorage(rId, rExtId);
+          return false;
+        }
+        return true;
       }));
       await apiFetch(API.reservations, { method: 'DELETE', body: JSON.stringify({ id }) });
       await fetchData();
