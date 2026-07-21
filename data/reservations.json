@@ -735,21 +735,6 @@
     "created_at": "2026-07-20T05:48:54.139Z"
   },
   {
-    "id": "rcl75wtne",
-    "room_id": "202",
-    "guest_id": null,
-    "guest_name": "alexa",
-    "check_in": "2026-07-20",
-    "check_out": "2026-07-21",
-    "dates": "2026-07-20 - 2026-07-21",
-    "total_price": 900,
-    "notes": "Reserva Web | [Huéspedes: 1 | Tel: 784101996 | Procedencia: ]",
-    "payment_status": "paid",
-    "status": "Confirmed",
-    "external_id": "res_queue_1784527976517",
-    "created_at": "2026-07-20T06:12:56.517Z"
-  },
-  {
     "id": "j2yu7l3ce",
     "room_id": "102",
     "guest_id": null,
@@ -973,20 +958,5 @@
     "status": "Confirmed",
     "external_id": null,
     "created_at": "2026-07-20T07:55:16.629Z"
-  },
-  {
-    "id": "res_cancel_1784534141",
-    "room_id": "101",
-    "guest_id": null,
-    "guest_name": "GuestCancel1784534141",
-    "check_in": "2026-07-20",
-    "check_out": "2026-07-21",
-    "dates": "2026-07-20 - 2026-07-21",
-    "total_price": 2300,
-    "notes": null,
-    "payment_status": "paid",
-    "status": "Confirmed",
-    "external_id": null,
-    "created_at": "2026-07-20T07:55:45.691Z"
   }
 ]

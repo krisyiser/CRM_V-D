@@ -54,18 +54,25 @@ export default function ReservationsPage() {
   const getReservationsForDay = (day: number) => {
     const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     return filtered.filter(res => {
-      if (!res.dates || res.status === 'Cancelled' || res.status === 'cancelled') return false;
-      const [checkIn, checkOut] = res.dates.split(' - ');
+      if (!res || res.status === 'Cancelled' || res.status === 'cancelled') return false;
+      const checkIn = res.check_in || (res.dates?.split(' - ')[0] ?? '');
+      const checkOut = res.check_out || (res.dates?.split(' - ')[1] ?? '');
+      if (!checkIn || !checkOut) return false;
       return dateStr >= checkIn && dateStr <= checkOut;
     });
   };
 
   const totalSuitesCount = rooms.length || 5;
 
-  const handleCancel = async (id: string) => {
+  const handleCancel = async (id: string, roomId?: string) => {
     try {
       const cleanId = String(id).trim().toLowerCase();
       registerCancelledReservationIdInStorage(cleanId);
+
+      // Find reservation to get roomId if not passed
+      const targetRes = reservations.find(r => r && (String(r.id).toLowerCase() === cleanId || String(r.external_id).toLowerCase() === cleanId));
+      const targetRoomId = roomId || targetRes?.room_id;
+
       // Optimistic UI update: remove from state immediately for 0ms visual latency
       setReservations(prev => prev.filter(r => {
         if (!r) return false;
@@ -77,8 +84,16 @@ export default function ReservationsPage() {
         }
         return true;
       }));
+
       await apiFetch(API.reservations, { method: 'DELETE', body: JSON.stringify({ id }) });
+
+      if (targetRoomId) {
+        await apiFetch(API.rooms, { method: 'PATCH', body: JSON.stringify({ id: targetRoomId, status: 'available' }) });
+      }
+
       await fetchData();
+      const { toast } = await import('@/components/Toast');
+      toast.success('Reservación cancelada exitosamente.');
     } catch (err) {
       console.error('Cancel error:', err);
       await fetchData();
