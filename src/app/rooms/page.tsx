@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BedDouble, Search, Loader2 } from 'lucide-react';
-import { apiFetch, API } from '@/lib/api';
+import { apiFetch, API, registerCancelledReservationIdInStorage } from '@/lib/api';
 import type { Room, Reservation } from '@/types';
 
 export default function RoomsPage() {
@@ -11,22 +11,23 @@ export default function RoomsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
+  const loadData = async () => {
+    try {
+      const [r, res] = await Promise.all([
+        apiFetch<Room[]>(API.rooms),
+        apiFetch<Reservation[]>(API.reservations),
+      ]);
+      setRooms(Array.isArray(r) ? r : []);
+      setReservations(Array.isArray(res) ? res : []);
+    } catch (err) {
+      console.error('Rooms fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      try {
-        const [r, res] = await Promise.all([
-          apiFetch<Room[]>(API.rooms),
-          apiFetch<Reservation[]>(API.reservations),
-        ]);
-        setRooms(Array.isArray(r) ? r : []);
-        setReservations(Array.isArray(res) ? res : []);
-      } catch (err) {
-        console.error('Rooms fetch error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    loadData();
   }, []);
 
   const today = new Date().toISOString().split('T')[0];
@@ -37,24 +38,49 @@ export default function RoomsPage() {
 
   const getActiveReservation = (roomId: string) =>
     reservations.find(r => {
-      const [ci, co] = (r.dates || '').split(' - ');
-      return r.room_id === roomId && today >= ci && today <= co;
+      if (!r) return false;
+      const statusLower = String(r.status || '').toLowerCase();
+      if (
+        statusLower === 'cancelled' ||
+        statusLower === 'checkedout' ||
+        statusLower === 'checked_out' ||
+        statusLower === 'completed'
+      ) {
+        return false;
+      }
+      const checkIn = r.check_in || (r.dates?.split(' - ')[0] ?? '');
+      const checkOut = r.check_out || (r.dates?.split(' - ')[1] ?? '');
+      return String(r.room_id) === String(roomId) && today >= checkIn && today <= checkOut;
     });
 
   const statusMap: Record<string, { label: string; badge: string }> = {
     available:    { label: 'Disponible',    badge: 'bg-[#8E9B8E]/10 text-[#8E9B8E] border-[#8E9B8E]/20' },
     occupied:     { label: 'Ocupada',       badge: 'bg-[#A68A64]/10 text-[#A68A64] border-[#A68A64]/20' },
     maintenance:  { label: 'Mantenimiento', badge: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
+    cleaning:     { label: 'Limpieza',      badge: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
   };
 
   const updateRoomStatus = async (roomId: string, newStatus: Room['status']) => {
     try {
+      // Optimistic UI update
+      setRooms(prev => prev.map(r => String(r.id) === String(roomId) ? { ...r, status: newStatus } : r));
+
+      if (newStatus === 'available') {
+        const activeRes = getActiveReservation(roomId);
+        if (activeRes) {
+          registerCancelledReservationIdInStorage(activeRes.id, activeRes.external_id);
+          setReservations(prev => prev.filter(r => String(r.room_id) !== String(roomId)));
+        }
+      }
+
       await apiFetch(API.rooms, { method: 'PATCH', body: JSON.stringify({ id: roomId, status: newStatus }) });
-      setRooms(prev => prev.map(r => r.id === roomId ? { ...r, status: newStatus } : r));
+      await loadData();
+
       const { toast } = await import('@/components/Toast');
       toast.success(`Estado de la Suite ${roomId} cambiado a ${statusMap[newStatus]?.label || newStatus}.`);
     } catch (err) {
-      console.error(err);
+      console.error('Update room error:', err);
+      await loadData();
     }
   };
 
@@ -88,8 +114,7 @@ export default function RoomsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         {filtered.map(room => {
           const activeRes = getActiveReservation(room.id);
-          const isOccupied = room.status === 'occupied' || !!activeRes;
-          const effectiveStatus = room.status === 'maintenance' ? 'maintenance' : (isOccupied ? 'occupied' : 'available');
+          const effectiveStatus = room.status || 'available';
           const st = statusMap[effectiveStatus] || statusMap.available;
 
           return (
@@ -115,7 +140,6 @@ export default function RoomsPage() {
                   </span>
                 </div>
 
-
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div className="bg-[#F9F7F2] rounded-xl p-3">
                     <p className="text-[9px] font-bold text-[#8C8C8C] uppercase tracking-widest">Tipo</p>
@@ -127,7 +151,7 @@ export default function RoomsPage() {
                   </div>
                 </div>
 
-                {activeRes && (
+                {activeRes && effectiveStatus === 'occupied' && (
                   <div className="bg-[#A68A64]/5 border border-[#A68A64]/20 rounded-xl p-3 text-left mb-4">
                     <p className="text-[9px] font-bold text-[#A68A64] uppercase tracking-widest">Huésped Actual</p>
                     <p className="text-sm font-semibold text-[#2D2D2D] mt-0.5">{activeRes.guest_name}</p>
@@ -137,23 +161,23 @@ export default function RoomsPage() {
               </div>
 
               {/* Status control action buttons */}
-              <div className="pt-3 border-t border-[#E8E4D9]/60 flex items-center gap-1.5">
+              <div className="pt-3 border-t border-[#E8E4D9]/60 flex items-center gap-1.5 flex-wrap">
                 <span className="text-[9px] font-bold text-[#8C8C8C] uppercase tracking-wider mr-1">Cambiar a:</span>
                 <button
                   onClick={() => updateRoomStatus(room.id, 'available')}
-                  className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider border transition-all ${room.status === 'available' ? 'bg-[#8E9B8E] text-white border-[#8E9B8E]' : 'bg-[#F9F7F2] text-[#6B6B6B] border-[#E8E4D9] hover:bg-white'}`}
+                  className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider border transition-all ${effectiveStatus === 'available' ? 'bg-[#8E9B8E] text-white border-[#8E9B8E]' : 'bg-[#F9F7F2] text-[#6B6B6B] border-[#E8E4D9] hover:bg-white'}`}
                 >
                   Disponible
                 </button>
                 <button
                   onClick={() => updateRoomStatus(room.id, 'occupied')}
-                  className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider border transition-all ${room.status === 'occupied' ? 'bg-[#A68A64] text-white border-[#A68A64]' : 'bg-[#F9F7F2] text-[#6B6B6B] border-[#E8E4D9] hover:bg-white'}`}
+                  className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider border transition-all ${effectiveStatus === 'occupied' ? 'bg-[#A68A64] text-white border-[#A68A64]' : 'bg-[#F9F7F2] text-[#6B6B6B] border-[#E8E4D9] hover:bg-white'}`}
                 >
                   Ocupada
                 </button>
                 <button
                   onClick={() => updateRoomStatus(room.id, 'maintenance')}
-                  className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider border transition-all ${room.status === 'maintenance' ? 'bg-amber-500 text-white border-amber-500' : 'bg-[#F9F7F2] text-[#6B6B6B] border-[#E8E4D9] hover:bg-white'}`}
+                  className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider border transition-all ${effectiveStatus === 'maintenance' ? 'bg-amber-500 text-white border-amber-500' : 'bg-[#F9F7F2] text-[#6B6B6B] border-[#E8E4D9] hover:bg-white'}`}
                 >
                   Mantenimiento
                 </button>

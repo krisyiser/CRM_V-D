@@ -4,7 +4,7 @@ export interface Room {
   id: string;
   name: string;
   room_type: string;
-  status: 'available' | 'occupied' | 'maintenance';
+  status: 'available' | 'occupied' | 'maintenance' | 'cleaning';
   price: number;
   image: string | null;
 }

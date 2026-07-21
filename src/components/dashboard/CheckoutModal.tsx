@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, LogOut } from 'lucide-react';
-import { API, apiFetch } from '@/lib/api';
+import { API, apiFetch, registerCancelledReservationIdInStorage } from '@/lib/api';
 import type { Room, Reservation, PosSale, RoomCharge } from '@/types';
 import { toast } from '@/components/Toast';
 import SatisfactionSurvey from './SatisfactionSurvey';
@@ -125,7 +125,6 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
     ? Math.max(0, currentReservation.total_price - dayPassTotal - parkingTotal)
     : ((roomDetails?.price || 0) * nights);
   
-  const roomPrice = nights > 0 ? (roomTotal / nights) : (roomDetails?.price || 0);
   const totalBarAmount = barCharges.reduce((sum, item) => sum + item.total, 0);
   const totalExtraAmount = extraCharges.reduce((sum, c) => sum + c.amount, 0);
   const grandTotal = roomTotal + dayPassTotal + parkingTotal + totalBarAmount + totalExtraAmount;
@@ -159,34 +158,12 @@ export default function CheckoutModal({ isOpen, onClose, roomId, roomName, curre
         body: JSON.stringify({ guest_name: guestName, rating: survey.overallScore, comment: JSON.stringify(fullFeedbackData) })
       });
 
-      await apiFetch(API.rooms, { method: 'PATCH', body: JSON.stringify({ id: roomId, status: 'available' }) });
-
-      try {
-        const stayReport = {
-          checkIn: checkIn || '',
-          checkOut: checkOut || '',
-          nights,
-          roomPrice,
-          roomTotal,
-          dayPass: { active: hasDayPass, details: dayPassDetails || 'N/A', total: dayPassTotal },
-          parking: { active: hasParking, total: parkingTotal },
-          barCharges,
-          checkoutExtras: extraCharges,
-          grandTotal,
-          checkoutPaid: chargesPaid
-        };
-
-        createdCharge = await apiFetch<RoomCharge>(API.roomCharges, {
-          method: 'POST',
-          body: JSON.stringify({ room_id: roomId, guest_name: guestName, items_json: JSON.stringify(stayReport), total: grandTotal })
-        });
-      } catch (chargeErr) {
-        console.error("[Checkout] Error saving stay report:", chargeErr);
-      }
-
       if (currentReservation) {
+        registerCancelledReservationIdInStorage(currentReservation.id, currentReservation.external_id);
         await apiFetch(API.reservations, { method: 'DELETE', body: JSON.stringify({ id: currentReservation.id }) });
       }
+
+      await apiFetch(API.rooms, { method: 'PATCH', body: JSON.stringify({ id: roomId, status: 'available' }) });
 
       toast.success(`Check-out de la Suite ${roomId} completado con éxito.`);
       onSuccess(createdCharge);

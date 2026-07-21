@@ -51,7 +51,7 @@ export default function DashboardPage() {
     const checkOut = r.check_out || (r.dates?.split(' - ')[1] ?? '');
     return today >= checkIn && today <= checkOut;
   });
-  const occupiedCount = rooms.filter(r => r.status === 'occupied' || todayReservations.some(res => res.room_id === r.id)).length;
+  const occupiedCount = rooms.filter(r => r.status === 'occupied').length;
   const occupancy = rooms.length > 0 ? Math.round((occupiedCount / rooms.length) * 100) : 0;
   const todayRevenue = todayReservations.reduce((sum, r) => sum + (r.total_price || 0), 0);
 
@@ -128,9 +128,8 @@ export default function DashboardPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {rooms.map(room => {
-            const todayRes = todayReservations.find(r => r.room_id === room.id);
-            const isOccupied = room.status === 'occupied' || !!todayRes;
-            const effectiveStatus = room.status === 'maintenance' ? 'maintenance' : (isOccupied ? 'occupied' : 'available');
+            const effectiveStatus = room.status || 'available';
+            const todayRes = effectiveStatus === 'occupied' ? todayReservations.find(r => String(r.room_id) === String(room.id)) : null;
             const st = getStatusStyle(effectiveStatus);
 
             return (
