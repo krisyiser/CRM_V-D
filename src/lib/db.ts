@@ -6,6 +6,19 @@ import type { Reservation } from '@/types';
 const DATA_DIR = path.join(process.cwd(), 'data');
 const TMP_DIR = path.join(os.tmpdir(), 'vainilla_data');
 
+/** In-memory tombstone set for deleted reservation IDs to survive Netlify serverless re-fetches */
+const DELETED_RESERVATION_IDS = new Set<string>();
+
+export function registerDeletedReservationId(...ids: (string | undefined | null)[]) {
+  for (const id of ids) {
+    if (!id) continue;
+    const clean = String(id).trim().toLowerCase();
+    if (clean.length > 0) {
+      DELETED_RESERVATION_IDS.add(clean);
+    }
+  }
+}
+
 /**
  * Sanitizes input filename to prevent path traversal vulnerabilities.
  */
@@ -19,27 +32,29 @@ function sanitizeFilename(filename: string): string {
 
 /**
  * Reads a JSON file from local data/ directory first, then /tmp serverless dir, or GitHub API as last resort.
+ * Automatically filters out any tombstones registered in DELETED_RESERVATION_IDS.
  */
 export async function readJson<T>(filename: string, fallback: T): Promise<T> {
   const safeName = sanitizeFilename(filename);
+  let data: T | null = null;
 
   // 1. Primary Read: Local data/ directory (single source of truth on disk)
   try {
     const filePath = path.join(DATA_DIR, safeName);
     const content = await fs.readFile(filePath, 'utf-8');
-    return JSON.parse(content) as T;
+    data = JSON.parse(content) as T;
   } catch {
     // 2. Secondary Read: /tmp runtime directory (for serverless environments)
     try {
       const tmpFilePath = path.join(TMP_DIR, safeName);
       const tmpContent = await fs.readFile(tmpFilePath, 'utf-8');
-      return JSON.parse(tmpContent) as T;
+      data = JSON.parse(tmpContent) as T;
     } catch {
       // 3. Fallback: GitHub API ONLY if local disk has no file at all
       const ghToken = process.env.GITHUB_TOKEN;
-      const ghRepo = process.env.GITHUB_REPO;
+      const ghRepo = process.env.GITHUB_REPO || 'krisyiser/CRM_V-D';
 
-      if (ghToken && ghRepo) {
+      if (ghToken) {
         try {
           const res = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}`, {
             headers: {
@@ -51,28 +66,43 @@ export async function readJson<T>(filename: string, fallback: T): Promise<T> {
           });
           if (res.ok) {
             const text = await res.text();
-            const parsed = JSON.parse(text) as T;
+            data = JSON.parse(text) as T;
             
             // Persist to local disk so subsequent reads don't re-fetch stale remote versions
             await fs.mkdir(DATA_DIR, { recursive: true }).catch(() => {});
             await fs.writeFile(path.join(DATA_DIR, safeName), text, 'utf-8').catch(() => {});
             await fs.mkdir(TMP_DIR, { recursive: true }).catch(() => {});
             await fs.writeFile(path.join(TMP_DIR, safeName), text, 'utf-8').catch(() => {});
-
-            return parsed;
           }
         } catch (e) {
           console.error(`[GitHub DB] Error fetching ${safeName} from GitHub API:`, e);
         }
       }
 
-      return fallback;
+      if (!data) data = fallback;
     }
   }
+
+  // Filter out tombstones if reading reservations.json
+  if (safeName === 'reservations.json' && Array.isArray(data)) {
+    const list = data as Reservation[];
+    const filtered = list.filter(r => {
+      if (!r) return false;
+      if (r.status === 'Cancelled' || r.status === 'cancelled') return false;
+      const rId = String(r.id || '').trim().toLowerCase();
+      const rExtId = String(r.external_id || '').trim().toLowerCase();
+      if (DELETED_RESERVATION_IDS.has(rId) || DELETED_RESERVATION_IDS.has(rExtId)) return false;
+      return true;
+    });
+    return filtered as any as T;
+  }
+
+  return data;
 }
 
 /**
  * Writes data atomically to data/ directory and /tmp runtime fallback, then syncs with GitHub if configured.
+ * ALWAYS awaits GitHub API write so Netlify Lambda functions don't terminate prematurely.
  */
 export async function writeJson<T>(filename: string, data: T): Promise<void> {
   const safeName = sanitizeFilename(filename);
@@ -96,44 +126,43 @@ export async function writeJson<T>(filename: string, data: T): Promise<void> {
     console.error(`[Serverless DB] Error writing TMP_DIR/${safeName}:`, err);
   }
 
-  // 3. Background sync with GitHub Repo API if configured
+  // 3. Synchronous sync with GitHub Repo API if configured
   const ghToken = process.env.GITHUB_TOKEN;
   const ghRepo = process.env.GITHUB_REPO || 'krisyiser/CRM_V-D';
 
   if (ghToken) {
-    (async () => {
-      try {
-        const metaRes = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}`, {
-          headers: {
-            'Authorization': `Bearer ${ghToken}`,
-            'User-Agent': 'Vainilla-CRM'
-          }
-        });
-        
-        let sha: string | undefined;
-        if (metaRes.ok) {
-          const meta = await metaRes.json();
-          sha = meta.sha;
-        }
-
-        const contentBase64 = Buffer.from(jsonString).toString('base64');
-        await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${ghToken}`,
-            'Content-Type': 'application/json',
-            'User-Agent': 'Vainilla-CRM'
-          },
-          body: JSON.stringify({
-            message: `auto-sync: update data/${safeName}`,
-            content: contentBase64,
-            sha
-          })
-        });
-      } catch (err) {
-        console.error(`[GitHub DB Sync] Error committing ${safeName} to GitHub:`, err);
+    try {
+      const metaRes = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}`, {
+        headers: {
+          'Authorization': `Bearer ${ghToken}`,
+          'User-Agent': 'Vainilla-CRM'
+        },
+        cache: 'no-store'
+      });
+      
+      let sha: string | undefined;
+      if (metaRes.ok) {
+        const meta = await metaRes.json();
+        sha = meta.sha;
       }
-    })();
+
+      const contentBase64 = Buffer.from(jsonString).toString('base64');
+      await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${ghToken}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'Vainilla-CRM'
+        },
+        body: JSON.stringify({
+          message: `auto-sync: update data/${safeName}`,
+          content: contentBase64,
+          sha
+        })
+      });
+    } catch (err) {
+      console.error(`[GitHub DB Sync] Error committing ${safeName} to GitHub:`, err);
+    }
   }
 }
 
@@ -167,7 +196,7 @@ export async function fetchWebsiteReservationsFromGitHub(): Promise<Reservation[
         const rawList = Array.isArray(parsed) ? parsed : (parsed && Array.isArray(parsed.reservations) ? parsed.reservations : []);
         
         if (rawList.length > 0) {
-          return rawList.map((item: any, index: number) => {
+          const list = rawList.map((item: any, index: number) => {
             const checkIn = item.check_in || item.checkIn || (item.dates?.split(' - ')[0] ?? '');
             const checkOut = item.check_out || item.checkOut || (item.dates?.split(' - ')[1] ?? '');
             return {
@@ -186,6 +215,14 @@ export async function fetchWebsiteReservationsFromGitHub(): Promise<Reservation[
               created_at: item.created_at || new Date().toISOString()
             };
           });
+
+          return list.filter((r: Reservation) => {
+            if (!r) return false;
+            if (r.status === 'Cancelled' || r.status === 'cancelled') return false;
+            const rId = String(r.id || '').trim().toLowerCase();
+            const rExtId = String(r.external_id || '').trim().toLowerCase();
+            return !DELETED_RESERVATION_IDS.has(rId) && !DELETED_RESERVATION_IDS.has(rExtId);
+          });
         }
       }
     } catch (e) {
@@ -202,6 +239,8 @@ export async function fetchWebsiteReservationsFromGitHub(): Promise<Reservation[
 export async function deleteWebsiteReservationFromGitHub(...ids: (string | undefined)[]): Promise<boolean> {
   const targetIds = ids.filter(Boolean) as string[];
   if (targetIds.length === 0) return false;
+
+  registerDeletedReservationId(...targetIds);
 
   const websiteRepo = process.env.WEBSITE_GITHUB_REPO || 'krisyiser/Vainilla-y-Descanso';
   const ghToken = process.env.GITHUB_TOKEN;
@@ -228,10 +267,13 @@ export async function deleteWebsiteReservationFromGitHub(...ids: (string | undef
 
     // Filter out target reservation from db.json
     list = list.filter((item: any) => {
-      const itemId = String(item.id || '');
-      const itemResId = String(item.reservation_id || '');
-      const itemExtId = String(item.external_id || '');
-      return !targetIds.some(tid => tid === itemId || tid === itemResId || tid === itemExtId);
+      const itemId = String(item.id || '').trim().toLowerCase();
+      const itemResId = String(item.reservation_id || '').trim().toLowerCase();
+      const itemExtId = String(item.external_id || '').trim().toLowerCase();
+      return !targetIds.some(tid => {
+        const cleanTid = String(tid).trim().toLowerCase();
+        return cleanTid === itemId || cleanTid === itemResId || cleanTid === itemExtId;
+      });
     });
 
     if (list.length === initialLen) return false;
@@ -239,7 +281,7 @@ export async function deleteWebsiteReservationFromGitHub(...ids: (string | undef
     const updatedData = Array.isArray(dbData) ? list : { ...dbData, reservations: list };
     const updatedBase64 = Buffer.from(JSON.stringify(updatedData, null, 2)).toString('base64');
 
-    const putRes = await fetch(contentsUrl, {
+    await fetch(contentsUrl, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${ghToken}`,
@@ -253,9 +295,9 @@ export async function deleteWebsiteReservationFromGitHub(...ids: (string | undef
       })
     });
 
-    return putRes.ok;
+    return true;
   } catch (err) {
-    console.error('[Website GitHub Cancel Sync] Error deleting reservation from website GitHub repo:', err);
+    console.error('[GitHub Website DB Delete] Error deleting reservation from website GitHub repo:', err);
     return false;
   }
 }

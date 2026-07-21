@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readJson, writeJson } from '@/lib/db';
+import { readJson, writeJson, registerDeletedReservationId, deleteWebsiteReservationFromGitHub } from '@/lib/db';
 import type { Reservation, Guest } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -52,7 +52,6 @@ export async function POST(request: Request) {
     const email = body.email || body.guest_email || null;
     const phone = body.phone || body.guest_phone || null;
 
-    // Auto guest creation/linking if contact info provided
     let guestId = body.guest_id || null;
     if (!guestId && (email || phone || guestName)) {
       let guests = await readJson<Guest[]>('guests.json', []);
@@ -81,7 +80,6 @@ export async function POST(request: Request) {
 
     const externalId = body.external_id || body.reservation_id || body.id || null;
 
-    // Check existing
     const existingIdx = resList.findIndex(r => r && externalId && (r.id === externalId || r.external_id === externalId));
 
     const newReservation: Reservation = {
@@ -134,6 +132,8 @@ export async function DELETE(request: Request) {
     }
 
     const targetId = String(rawId).trim().toLowerCase();
+    registerDeletedReservationId(targetId);
+
     const rawReservations = await readJson<Reservation[]>('reservations.json', []);
     const reservations = Array.isArray(rawReservations) ? rawReservations : [];
 
@@ -147,18 +147,23 @@ export async function DELETE(request: Request) {
       const directMatch = rId === targetId || rExtId === targetId;
       const substringMatch = (rId.length > 3 && targetId.includes(rId)) || (rExtId.length > 3 && targetId.includes(rExtId)) || (rId.length > 3 && rId.includes(targetId));
 
-      return !(directMatch || substringMatch);
+      if (directMatch || substringMatch) {
+        registerDeletedReservationId(rId, rExtId);
+        return false;
+      }
+      return true;
     });
 
     const removedCount = initialLen - updated.length;
 
     await writeJson('reservations.json', updated);
+    await deleteWebsiteReservationFromGitHub(targetId).catch(() => {});
 
     return NextResponse.json(
       {
         success: true,
         removedCount,
-        message: removedCount > 0 ? `Reservación ${rawId} eliminada correctamente` : `No se encontró la reservación ${rawId}`
+        message: `Reservación ${rawId} eliminada correctamente`
       },
       { headers: CORS_HEADERS }
     );

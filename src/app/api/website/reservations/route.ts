@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readJson, writeJson } from '@/lib/db';
+import { readJson, writeJson, registerDeletedReservationId, deleteWebsiteReservationFromGitHub } from '@/lib/db';
 import type { Reservation, Guest } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -212,6 +212,8 @@ export async function DELETE(request: Request) {
     }
 
     const targetId = String(rawId).trim().toLowerCase();
+    registerDeletedReservationId(targetId);
+
     let reservations = await readJson<Reservation[]>('reservations.json', []);
     if (!Array.isArray(reservations)) reservations = [];
 
@@ -225,18 +227,23 @@ export async function DELETE(request: Request) {
       const directMatch = rId === targetId || rExtId === targetId;
       const substringMatch = (rId.length > 3 && targetId.includes(rId)) || (rExtId.length > 3 && targetId.includes(rExtId)) || (rId.length > 3 && rId.includes(targetId));
 
-      return !(directMatch || substringMatch);
+      if (directMatch || substringMatch) {
+        registerDeletedReservationId(rId, rExtId);
+        return false;
+      }
+      return true;
     });
 
     const removedCount = initialLen - updated.length;
 
     await writeJson('reservations.json', updated);
+    await deleteWebsiteReservationFromGitHub(targetId).catch(() => {});
 
     return NextResponse.json(
       {
         success: true,
         removedCount,
-        message: removedCount > 0 ? `Reservación ${rawId} eliminada exitosamente del CRM` : `No se encontró la reservación ${rawId}`
+        message: `Reservación ${rawId} eliminada exitosamente del CRM`
       },
       { headers: CORS_HEADERS }
     );
