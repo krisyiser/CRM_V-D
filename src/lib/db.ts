@@ -22,21 +22,18 @@ export async function registerDeletedReservationId(...ids: (string | undefined |
     DELETED_RESERVATION_IDS.add(id);
   }
 
-  // Load existing from deleted_reservations.json
-  let deleted: string[] = [];
-  try {
-    deleted = await readJson<string[]>('deleted_reservations.json', []);
-    if (!Array.isArray(deleted)) deleted = [];
-  } catch {
-    deleted = [];
-  }
-
-  const set = new Set([
-    ...deleted.map(id => String(id).trim().toLowerCase()),
-    ...cleanIds
-  ]);
-
-  await writeJson('deleted_reservations.json', Array.from(set));
+  await updateJsonTransactional<string[]>(
+    'deleted_reservations.json',
+    (existing) => {
+      const list = Array.isArray(existing) ? existing : [];
+      const set = new Set([
+        ...list.map(id => String(id).trim().toLowerCase()),
+        ...cleanIds
+      ]);
+      return Array.from(set);
+    },
+    []
+  );
 }
 
 /**
@@ -299,58 +296,184 @@ export async function deleteWebsiteReservationFromGitHub(...ids: (string | undef
   const ghToken = process.env.GITHUB_TOKEN;
   if (!ghToken) return false;
 
-  try {
-    const contentsUrl = `https://api.github.com/repos/${websiteRepo}/contents/data/db.json`;
-    const res = await fetch(contentsUrl, {
-      headers: {
-        'Authorization': `Bearer ${ghToken}`,
-        'User-Agent': 'Vainilla-CRM'
-      },
-      cache: 'no-store'
-    });
+  const maxRetries = 5;
+  let attempt = 0;
 
-    if (!res.ok) return false;
-    const meta = await res.json();
-    const sha = meta.sha;
-    const rawContent = Buffer.from(meta.content, 'base64').toString('utf-8');
-    const dbData = JSON.parse(rawContent);
-
-    let list: any[] = Array.isArray(dbData) ? dbData : (dbData.reservations || []);
-    const initialLen = list.length;
-
-    // Filter out target reservation from db.json
-    list = list.filter((item: any) => {
-      const itemId = String(item.id || '').trim().toLowerCase();
-      const itemResId = String(item.reservation_id || '').trim().toLowerCase();
-      const itemExtId = String(item.external_id || '').trim().toLowerCase();
-      return !targetIds.some(tid => {
-        const cleanTid = String(tid).trim().toLowerCase();
-        return cleanTid === itemId || cleanTid === itemResId || cleanTid === itemExtId;
+  while (attempt < maxRetries) {
+    attempt++;
+    try {
+      const contentsUrl = `https://api.github.com/repos/${websiteRepo}/contents/data/db.json`;
+      const res = await fetch(contentsUrl, {
+        headers: {
+          'Authorization': `Bearer ${ghToken}`,
+          'User-Agent': 'Vainilla-CRM'
+        },
+        cache: 'no-store'
       });
-    });
 
-    if (list.length === initialLen) return false;
+      if (!res.ok) return false;
+      const meta = await res.json();
+      const sha = meta.sha;
+      const rawContent = Buffer.from(meta.content, 'base64').toString('utf-8');
+      const dbData = JSON.parse(rawContent);
 
-    const updatedData = Array.isArray(dbData) ? list : { ...dbData, reservations: list };
-    const updatedBase64 = Buffer.from(JSON.stringify(updatedData, null, 2)).toString('base64');
+      let list: any[] = Array.isArray(dbData) ? dbData : (dbData.reservations || []);
+      const initialLen = list.length;
 
-    await fetch(contentsUrl, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${ghToken}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'Vainilla-CRM'
-      },
-      body: JSON.stringify({
-        message: `cancel: remove reservation ${targetIds.join(', ')} from db.json`,
-        content: updatedBase64,
-        sha
-      })
-    });
+      // Filter out target reservation from db.json
+      list = list.filter((item: any) => {
+        const itemId = String(item.id || '').trim().toLowerCase();
+        const itemResId = String(item.reservation_id || '').trim().toLowerCase();
+        const itemExtId = String(item.external_id || '').trim().toLowerCase();
+        return !targetIds.some(tid => {
+          const cleanTid = String(tid).trim().toLowerCase();
+          return cleanTid === itemId || cleanTid === itemResId || cleanTid === itemExtId;
+        });
+      });
 
-    return true;
-  } catch (err) {
-    console.error('[GitHub Website DB Delete] Error deleting reservation from website GitHub repo:', err);
-    return false;
+      if (list.length === initialLen) return false;
+
+      const updatedData = Array.isArray(dbData) ? list : { ...dbData, reservations: list };
+      const updatedBase64 = Buffer.from(JSON.stringify(updatedData, null, 2)).toString('base64');
+
+      const putRes = await fetch(contentsUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${ghToken}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'Vainilla-CRM'
+        },
+        body: JSON.stringify({
+          message: `cancel: remove reservation ${targetIds.join(', ')} from db.json`,
+          content: updatedBase64,
+          sha
+        })
+      });
+
+      if (putRes.ok) {
+        return true;
+      } else if (putRes.status === 409 || putRes.status === 422) {
+        console.warn(`[Website DB Delete] Conflict on ${websiteRepo}/contents/data/db.json. Retrying...`);
+        await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
+        continue;
+      } else {
+        return false;
+      }
+    } catch (err) {
+      console.error('[GitHub Website DB Delete] Error deleting reservation from website GitHub repo:', err);
+      if (attempt === maxRetries) return false;
+      await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 300));
+    }
   }
+  return false;
+}
+
+export async function updateJsonTransactional<T>(
+  filename: string,
+  transform: (data: T) => T | Promise<T>,
+  fallback: T
+): Promise<T> {
+  const safeName = sanitizeFilename(filename);
+  const ghToken = process.env.GITHUB_TOKEN;
+  const ghRepo = process.env.GITHUB_REPO || 'krisyiser/CRM_V-D';
+
+  const maxRetries = 5;
+  let attempt = 0;
+
+  while (attempt < maxRetries) {
+    attempt++;
+    let currentData: T = fallback;
+    let sha: string | undefined = undefined;
+
+    // 1. Fetch current data and SHA directly from GitHub if configured
+    if (ghToken) {
+      try {
+        const res = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}`, {
+          headers: {
+            'Authorization': `Bearer ${ghToken}`,
+            'User-Agent': 'Vainilla-CRM'
+          },
+          cache: 'no-store'
+        });
+
+        if (res.ok) {
+          const meta = await res.json();
+          sha = meta.sha;
+          const rawContent = Buffer.from(meta.content, 'base64').toString('utf-8');
+          currentData = JSON.parse(rawContent) as T;
+        } else if (res.status === 404) {
+          sha = undefined;
+          currentData = fallback;
+        } else {
+          throw new Error(`Failed to fetch from GitHub: ${res.status}`);
+        }
+      } catch (err) {
+        console.warn(`[Transactional Read] Attempt ${attempt} failed to fetch from GitHub:`, err);
+        if (attempt === maxRetries) {
+          currentData = await readJson<T>(filename, fallback);
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 300));
+          continue;
+        }
+      }
+    } else {
+      currentData = await readJson<T>(filename, fallback);
+    }
+
+    // 2. Apply transformation
+    const transformedData = await transform(currentData);
+    const jsonString = JSON.stringify(transformedData, null, 2);
+
+    // 3. Write locally (both /tmp and data/ directories)
+    try {
+      await fs.mkdir(DATA_DIR, { recursive: true }).catch(() => {});
+      await fs.writeFile(path.join(DATA_DIR, safeName), jsonString, 'utf-8');
+      await fs.mkdir(TMP_DIR, { recursive: true }).catch(() => {});
+      await fs.writeFile(path.join(TMP_DIR, safeName), jsonString, 'utf-8');
+    } catch (err) {
+      console.warn('[Transactional Write] Local write warning:', err);
+    }
+
+    // 4. Commit to GitHub with SHA (Compare-And-Swap)
+    if (ghToken) {
+      try {
+        const contentBase64 = Buffer.from(jsonString).toString('base64');
+        const res = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${ghToken}`,
+            'Content-Type': 'application/json',
+            'User-Agent': 'Vainilla-CRM'
+          },
+          body: JSON.stringify({
+            message: `auto-sync: transactional update data/${safeName}`,
+            content: contentBase64,
+            sha
+          })
+        });
+
+        if (res.ok) {
+          return transformedData;
+        } else if (res.status === 409 || res.status === 422) {
+          console.warn(`[Transactional Write] Conflict detected (status ${res.status}) on ${safeName}. Retrying...`);
+          await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 200));
+          continue;
+        } else {
+          const errText = await res.text().catch(() => '');
+          throw new Error(`GitHub API error ${res.status}: ${errText}`);
+        }
+      } catch (err) {
+        console.error(`[Transactional Write] Attempt ${attempt} failed to write to GitHub:`, err);
+        if (attempt === maxRetries) {
+          return transformedData;
+        }
+        await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 300));
+        continue;
+      }
+    } else {
+      return transformedData;
+    }
+  }
+
+  throw new Error(`[Transactional Write] Exceeded maximum retries (${maxRetries}) for ${filename}`);
 }

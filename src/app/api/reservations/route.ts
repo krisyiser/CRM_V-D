@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { readJson, writeJson, registerDeletedReservationId, deleteWebsiteReservationFromGitHub, fetchWebsiteReservationsFromGitHub } from '@/lib/db';
+import { readJson, registerDeletedReservationId, deleteWebsiteReservationFromGitHub, fetchWebsiteReservationsFromGitHub, updateJsonTransactional } from '@/lib/db';
 import type { Reservation, Guest } from '@/types';
 
 export const dynamic = 'force-dynamic';
@@ -31,34 +31,40 @@ export async function GET() {
       const websiteRes = await fetchWebsiteReservationsFromGitHub();
       if (Array.isArray(websiteRes) && websiteRes.length > 0) {
         let addedCount = 0;
-        for (const wRes of websiteRes) {
-          if (!wRes) continue;
-          const wId = String(wRes.id || '').trim().toLowerCase();
-          const wExtId = String(wRes.external_id || '').trim().toLowerCase();
+        const mergedReservations = await updateJsonTransactional<Reservation[]>(
+          'reservations.json',
+          (currentList) => {
+            const list = Array.isArray(currentList) ? currentList : [];
+            const updated = [...list];
+            for (const wRes of websiteRes) {
+              if (!wRes) continue;
+              const wId = String(wRes.id || '').trim().toLowerCase();
+              const wExtId = String(wRes.external_id || '').trim().toLowerCase();
 
-          const exists = reservations.some(r => {
-            if (!r) return false;
-            const rId = String(r.id || '').trim().toLowerCase();
-            const rExtId = String(r.external_id || '').trim().toLowerCase();
+              const exists = updated.some(r => {
+                if (!r) return false;
+                const rId = String(r.id || '').trim().toLowerCase();
+                const rExtId = String(r.external_id || '').trim().toLowerCase();
 
-            return (
-              (wId && rId === wId) ||
-              (wExtId && rExtId === wExtId) ||
-              (wId && rExtId === wId) ||
-              (wExtId && rId === wExtId) ||
-              (String(r.room_id) === String(wRes.room_id) && r.check_in === wRes.check_in && r.check_out === wRes.check_out && r.guest_name === wRes.guest_name)
-            );
-          });
+                return (
+                  (wId && rId === wId) ||
+                  (wExtId && rExtId === wExtId) ||
+                  (wId && rExtId === wId) ||
+                  (wExtId && rId === wExtId) ||
+                  (String(r.room_id) === String(wRes.room_id) && r.check_in === wRes.check_in && r.check_out === wRes.check_out && r.guest_name === wRes.guest_name)
+                );
+              });
 
-          if (!exists) {
-            reservations.push(wRes);
-            addedCount++;
-          }
-        }
-
-        if (addedCount > 0) {
-          await writeJson('reservations.json', reservations);
-        }
+              if (!exists) {
+                updated.push(wRes);
+                addedCount++;
+              }
+            }
+            return updated;
+          },
+          []
+        );
+        reservations = mergedReservations;
       }
     } catch (webErr) {
       console.warn('[GET /api/reservations] Could not sync website reservations:', webErr);
@@ -80,8 +86,6 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const reservations = await readJson<Reservation[]>('reservations.json', []);
-    const resList = Array.isArray(reservations) ? reservations : [];
 
     const checkIn = body.check_in || body.checkIn || (body.dates?.split(' - ')[0] ?? '');
     const checkOut = body.check_out || body.checkOut || (body.dates?.split(' - ')[1] ?? '');
@@ -92,57 +96,70 @@ export async function POST(request: Request) {
 
     let guestId = body.guest_id || null;
     if (!guestId && (email || phone || guestName)) {
-      let guests = await readJson<Guest[]>('guests.json', []);
-      if (!Array.isArray(guests)) guests = [];
-      const existing = guests.find(g => 
-        (email && g.email && g.email.toLowerCase() === email.toLowerCase()) ||
-        (phone && g.phone && g.phone === phone)
+      await updateJsonTransactional<Guest[]>(
+        'guests.json',
+        (guestsList) => {
+          const list = Array.isArray(guestsList) ? guestsList : [];
+          const existing = list.find(g => 
+            (email && g.email && g.email.toLowerCase() === email.toLowerCase()) ||
+            (phone && g.phone && g.phone === phone)
+          );
+          if (existing) {
+            guestId = existing.id;
+            return list;
+          } else {
+            const newGuest: Guest = {
+              id: `guest_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+              name: guestName,
+              email: email,
+              phone: phone,
+              id_number: null,
+              origin: body.origin || 'Reserva Directa',
+              created_at: new Date().toISOString()
+            };
+            guestId = newGuest.id;
+            return [...list, newGuest];
+          }
+        },
+        []
       );
-      if (existing) {
-        guestId = existing.id;
-      } else {
-        const newGuest: Guest = {
-          id: `guest_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-          name: guestName,
-          email: email,
-          phone: phone,
-          id_number: null,
-          origin: body.origin || 'Reserva Directa',
-          created_at: new Date().toISOString()
-        };
-        guests.push(newGuest);
-        guestId = newGuest.id;
-        await writeJson('guests.json', guests);
-      }
     }
 
     const externalId = body.external_id || body.reservation_id || body.id || null;
+    let newReservation: Reservation | null = null;
 
-    const existingIdx = resList.findIndex(r => r && externalId && (r.id === externalId || r.external_id === externalId));
+    await updateJsonTransactional<Reservation[]>(
+      'reservations.json',
+      (reservationsList) => {
+        const list = Array.isArray(reservationsList) ? reservationsList : [];
+        const existingIdx = list.findIndex(r => r && externalId && (r.id === externalId || r.external_id === externalId));
 
-    const newReservation: Reservation = {
-      id: existingIdx >= 0 ? resList[existingIdx].id : (body.id || `res_${Date.now()}`),
-      room_id: String(body.room_id || body.roomId || '101'),
-      guest_id: guestId,
-      guest_name: guestName,
-      check_in: checkIn,
-      check_out: checkOut,
-      dates: body.dates || `${checkIn} - ${checkOut}`,
-      total_price: Number(body.total_price || body.totalPrice) || 0,
-      notes: body.notes || null,
-      payment_status: body.payment_status || body.paymentStatus || 'paid',
-      status: body.status || 'Confirmed',
-      external_id: externalId,
-      created_at: new Date().toISOString(),
-    };
+        newReservation = {
+          id: existingIdx >= 0 ? list[existingIdx].id : (body.id || `res_${Date.now()}`),
+          room_id: String(body.room_id || body.roomId || '101'),
+          guest_id: guestId,
+          guest_name: guestName,
+          check_in: checkIn,
+          check_out: checkOut,
+          dates: body.dates || `${checkIn} - ${checkOut}`,
+          total_price: Number(body.total_price || body.totalPrice) || 0,
+          notes: body.notes || null,
+          payment_status: body.payment_status || body.paymentStatus || 'paid',
+          status: body.status || 'Confirmed',
+          external_id: externalId,
+          created_at: new Date().toISOString(),
+        };
 
-    if (existingIdx >= 0) {
-      resList[existingIdx] = newReservation;
-    } else {
-      resList.push(newReservation);
-    }
-
-    await writeJson('reservations.json', resList);
+        const updatedList = [...list];
+        if (existingIdx >= 0) {
+          updatedList[existingIdx] = newReservation;
+        } else {
+          updatedList.push(newReservation);
+        }
+        return updatedList;
+      },
+      []
+    );
 
     return NextResponse.json(newReservation, { status: 200, headers: CORS_HEADERS });
   } catch (error: any) {
@@ -172,35 +189,38 @@ export async function DELETE(request: Request) {
     const targetId = String(rawId).trim().toLowerCase();
     await registerDeletedReservationId(targetId);
 
-    const rawReservations = await readJson<Reservation[]>('reservations.json', []);
-    const reservations = Array.isArray(rawReservations) ? rawReservations : [];
-
-    const initialLen = reservations.length;
-
     const matchedIds: string[] = [];
-    const updated = reservations.filter(r => {
-      if (!r) return false;
-      const rId = String(r.id || '').trim().toLowerCase();
-      const rExtId = String(r.external_id || '').trim().toLowerCase();
+    let removedCount = 0;
 
-      const directMatch = rId === targetId || rExtId === targetId;
-      const substringMatch = (rId.length > 3 && targetId.includes(rId)) || (rExtId.length > 3 && targetId.includes(rExtId)) || (rId.length > 3 && rId.includes(targetId));
+    await updateJsonTransactional<Reservation[]>(
+      'reservations.json',
+      (reservationsList) => {
+        const list = Array.isArray(reservationsList) ? reservationsList : [];
+        const filtered = list.filter(r => {
+          if (!r) return false;
+          const rId = String(r.id || '').trim().toLowerCase();
+          const rExtId = String(r.external_id || '').trim().toLowerCase();
 
-      if (directMatch || substringMatch) {
-        matchedIds.push(rId);
-        if (rExtId) matchedIds.push(rExtId);
-        return false;
-      }
-      return true;
-    });
+          const directMatch = rId === targetId || rExtId === targetId;
+          const substringMatch = (rId.length > 3 && targetId.includes(rId)) || (rExtId.length > 3 && targetId.includes(rExtId)) || (rId.length > 3 && rId.includes(targetId));
+
+          if (directMatch || substringMatch) {
+            matchedIds.push(rId);
+            if (rExtId) matchedIds.push(rExtId);
+            return false;
+          }
+          return true;
+        });
+        removedCount = list.length - filtered.length;
+        return filtered;
+      },
+      []
+    );
 
     if (matchedIds.length > 0) {
       await registerDeletedReservationId(...matchedIds);
     }
 
-    const removedCount = initialLen - updated.length;
-
-    await writeJson('reservations.json', updated);
     await deleteWebsiteReservationFromGitHub(targetId).catch(() => {});
 
     return NextResponse.json(
