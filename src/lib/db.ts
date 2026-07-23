@@ -58,48 +58,51 @@ export async function readJson<T>(filename: string, fallback: T): Promise<T> {
   const safeName = sanitizeFilename(filename);
   let data: T | null = null;
 
-  // 1. Primary Read: Local data/ directory (single source of truth on disk)
-  try {
-    const filePath = path.join(DATA_DIR, safeName);
-    const content = await fs.readFile(filePath, 'utf-8');
-    data = JSON.parse(content) as T;
-  } catch {
-    // 2. Secondary Read: /tmp runtime directory (for serverless environments)
+  const ghToken = process.env.GITHUB_TOKEN;
+  const ghRepo = process.env.GITHUB_REPO || 'krisyiser/CRM_V-D';
+
+  // 1. Primary Read: GitHub API if configured (to avoid stale serverless disk cache)
+  if (ghToken) {
+    try {
+      const res = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}`, {
+        headers: {
+          'Authorization': `Bearer ${ghToken}`,
+          'Accept': 'application/vnd.github.v3.raw',
+          'User-Agent': 'Vainilla-CRM'
+        },
+        cache: 'no-store'
+      });
+      if (res.ok) {
+        const text = await res.text();
+        data = JSON.parse(text) as T;
+        
+        // Cache to disk and /tmp so offline/stale fallbacks stay warm
+        await fs.mkdir(DATA_DIR, { recursive: true }).catch(() => {});
+        await fs.writeFile(path.join(DATA_DIR, safeName), text, 'utf-8').catch(() => {});
+        await fs.mkdir(TMP_DIR, { recursive: true }).catch(() => {});
+        await fs.writeFile(path.join(TMP_DIR, safeName), text, 'utf-8').catch(() => {});
+      }
+    } catch (e) {
+      console.warn(`[GitHub DB] Failed to fetch ${safeName} from GitHub API, falling back to local files:`, e);
+    }
+  }
+
+  // 2. Fallbacks: Read from local disk if GitHub is not configured or failed
+  if (data === null) {
+    // Try /tmp runtime directory first (contains newer dynamic serverless writes)
     try {
       const tmpFilePath = path.join(TMP_DIR, safeName);
       const tmpContent = await fs.readFile(tmpFilePath, 'utf-8');
       data = JSON.parse(tmpContent) as T;
     } catch {
-      // 3. Fallback: GitHub API ONLY if local disk has no file at all
-      const ghToken = process.env.GITHUB_TOKEN;
-      const ghRepo = process.env.GITHUB_REPO || 'krisyiser/CRM_V-D';
-
-      if (ghToken) {
-        try {
-          const res = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}`, {
-            headers: {
-              'Authorization': `Bearer ${ghToken}`,
-              'Accept': 'application/vnd.github.v3.raw',
-              'User-Agent': 'Vainilla-CRM'
-            },
-            cache: 'no-store'
-          });
-          if (res.ok) {
-            const text = await res.text();
-            data = JSON.parse(text) as T;
-            
-            // Persist to local disk so subsequent reads don't re-fetch stale remote versions
-            await fs.mkdir(DATA_DIR, { recursive: true }).catch(() => {});
-            await fs.writeFile(path.join(DATA_DIR, safeName), text, 'utf-8').catch(() => {});
-            await fs.mkdir(TMP_DIR, { recursive: true }).catch(() => {});
-            await fs.writeFile(path.join(TMP_DIR, safeName), text, 'utf-8').catch(() => {});
-          }
-        } catch (e) {
-          console.error(`[GitHub DB] Error fetching ${safeName} from GitHub API:`, e);
-        }
+      // Try local static data/ directory next
+      try {
+        const filePath = path.join(DATA_DIR, safeName);
+        const content = await fs.readFile(filePath, 'utf-8');
+        data = JSON.parse(content) as T;
+      } catch {
+        data = fallback;
       }
-
-      if (!data) data = fallback;
     }
   }
 
