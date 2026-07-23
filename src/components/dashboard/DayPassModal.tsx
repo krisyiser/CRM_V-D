@@ -1,7 +1,7 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CheckCircle2, Ticket, CreditCard, DollarSign } from 'lucide-react';
+import { X, CheckCircle2, Ticket } from 'lucide-react';
 import { API, apiFetch } from '@/lib/api';
 import type { Guest } from '@/types';
 import { toast } from '@/components/Toast';
@@ -42,7 +42,7 @@ export default function DayPassModal({ isOpen, onClose, onSuccess }: Props) {
 
     try {
       // 1. Register client as guest in guests history
-      const guest = await apiFetch<Guest>(API.guests, {
+      await apiFetch<Guest>(API.guests, {
         method: 'POST',
         body: JSON.stringify({
           name: formData.name.trim(),
