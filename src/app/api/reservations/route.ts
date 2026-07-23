@@ -170,13 +170,14 @@ export async function DELETE(request: Request) {
     }
 
     const targetId = String(rawId).trim().toLowerCase();
-    registerDeletedReservationId(targetId);
+    await registerDeletedReservationId(targetId);
 
     const rawReservations = await readJson<Reservation[]>('reservations.json', []);
     const reservations = Array.isArray(rawReservations) ? rawReservations : [];
 
     const initialLen = reservations.length;
 
+    const matchedIds: string[] = [];
     const updated = reservations.filter(r => {
       if (!r) return false;
       const rId = String(r.id || '').trim().toLowerCase();
@@ -186,11 +187,16 @@ export async function DELETE(request: Request) {
       const substringMatch = (rId.length > 3 && targetId.includes(rId)) || (rExtId.length > 3 && targetId.includes(rExtId)) || (rId.length > 3 && rId.includes(targetId));
 
       if (directMatch || substringMatch) {
-        registerDeletedReservationId(rId, rExtId);
+        matchedIds.push(rId);
+        if (rExtId) matchedIds.push(rExtId);
         return false;
       }
       return true;
     });
+
+    if (matchedIds.length > 0) {
+      await registerDeletedReservationId(...matchedIds);
+    }
 
     const removedCount = initialLen - updated.length;
 

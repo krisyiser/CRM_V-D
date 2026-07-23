@@ -93,7 +93,7 @@ export default function GuestForm({
           <Plus size={14} />
           <span className="text-[10px] font-bold uppercase tracking-widest">Extras y Adicionales</span>
         </div>
-        <div className="grid grid-cols-3 gap-4 text-left items-start">
+        <div className="grid grid-cols-2 gap-4 text-left items-start">
           <div className="space-y-2">
             <label className="text-[11px] font-bold text-[#8C8C8C] uppercase tracking-wider ml-1">Pers. Extra ($250)</label>
             <input 
@@ -104,28 +104,6 @@ export default function GuestForm({
               placeholder="0"
               className="w-full bg-[#F9F7F2] border border-[#E8E4D9] rounded-2xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#A68A64]/20 transition-all text-[#2D2D2D]" 
             />
-          </div>
-          <div className="space-y-2">
-            <label className="text-[11px] font-bold text-[#8C8C8C] uppercase tracking-wider ml-1">
-              Day Pass (${formData.dayPassWithFood ? '150' : '100'})
-            </label>
-            <input 
-              type="number" 
-              min="0"
-              value={formData.dayPasses || ''}
-              onChange={(e) => setFormData({...formData, dayPasses: parseInt(e.target.value) || 0})}
-              placeholder="0"
-              className="w-full bg-[#F9F7F2] border border-[#E8E4D9] rounded-2xl py-3 px-4 text-sm focus:outline-none focus:ring-2 focus:ring-[#A68A64]/20 transition-all text-[#2D2D2D]" 
-            />
-            <label className="flex items-center gap-2 mt-1.5 cursor-pointer select-none">
-              <input 
-                type="checkbox"
-                checked={formData.dayPassWithFood}
-                onChange={(e) => setFormData({...formData, dayPassWithFood: e.target.checked})}
-                className="rounded border-[#E8E4D9] text-[#A68A64] focus:ring-[#A68A64]/30"
-              />
-              <span className="text-[10px] font-semibold text-[#6B6B6B]">Con comida (+ $50)</span>
-            </label>
           </div>
           <div className="space-y-2">
             <label className="text-[11px] font-bold text-[#8C8C8C] uppercase tracking-wider ml-1">Estacionamiento</label>
@@ -141,7 +119,7 @@ export default function GuestForm({
               </label>
             </div>
           </div>
-          <div className="space-y-2 col-span-3">
+          <div className="space-y-2 col-span-2">
             <label className="text-[11px] font-bold text-[#8C8C8C] uppercase tracking-wider ml-1">Otros Cargos</label>
             <div className="flex flex-col gap-2">
               {extraChargesList.map((charge, idx) => (

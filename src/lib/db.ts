@@ -9,14 +9,34 @@ const TMP_DIR = path.join(os.tmpdir(), 'vainilla_data');
 /** In-memory tombstone set for deleted reservation IDs to survive Netlify serverless re-fetches */
 const DELETED_RESERVATION_IDS = new Set<string>();
 
-export function registerDeletedReservationId(...ids: (string | undefined | null)[]) {
-  for (const id of ids) {
-    if (!id) continue;
-    const clean = String(id).trim().toLowerCase();
-    if (clean.length > 0) {
-      DELETED_RESERVATION_IDS.add(clean);
-    }
+export async function registerDeletedReservationId(...ids: (string | undefined | null)[]) {
+  const cleanIds = ids
+    .filter(Boolean)
+    .map(id => String(id).trim().toLowerCase())
+    .filter(id => id.length > 0);
+
+  if (cleanIds.length === 0) return;
+
+  // Sync to in-memory set
+  for (const id of cleanIds) {
+    DELETED_RESERVATION_IDS.add(id);
   }
+
+  // Load existing from deleted_reservations.json
+  let deleted: string[] = [];
+  try {
+    deleted = await readJson<string[]>('deleted_reservations.json', []);
+    if (!Array.isArray(deleted)) deleted = [];
+  } catch {
+    deleted = [];
+  }
+
+  const set = new Set([
+    ...deleted.map(id => String(id).trim().toLowerCase()),
+    ...cleanIds
+  ]);
+
+  await writeJson('deleted_reservations.json', Array.from(set));
 }
 
 /**
@@ -85,13 +105,31 @@ export async function readJson<T>(filename: string, fallback: T): Promise<T> {
 
   // Filter out tombstones if reading reservations.json
   if (safeName === 'reservations.json' && Array.isArray(data)) {
+    let deletedList: string[] = [];
+    try {
+      deletedList = await readJson<string[]>('deleted_reservations.json', []);
+      if (!Array.isArray(deletedList)) deletedList = [];
+    } catch {
+      deletedList = [];
+    }
+
+    const deletedSet = new Set([
+      ...deletedList.map(id => String(id).trim().toLowerCase()),
+      ...Array.from(DELETED_RESERVATION_IDS)
+    ]);
+
+    // Keep in-memory in sync
+    for (const id of deletedSet) {
+      DELETED_RESERVATION_IDS.add(id);
+    }
+
     const list = data as Reservation[];
     const filtered = list.filter(r => {
       if (!r) return false;
       if (r.status === 'Cancelled' || r.status === 'cancelled') return false;
       const rId = String(r.id || '').trim().toLowerCase();
       const rExtId = String(r.external_id || '').trim().toLowerCase();
-      if (DELETED_RESERVATION_IDS.has(rId) || DELETED_RESERVATION_IDS.has(rExtId)) return false;
+      if (deletedSet.has(rId) || deletedSet.has(rExtId)) return false;
       return true;
     });
     return filtered as any as T;
@@ -216,12 +254,24 @@ export async function fetchWebsiteReservationsFromGitHub(): Promise<Reservation[
             };
           });
 
+          let deletedList: string[] = [];
+          try {
+            deletedList = await readJson<string[]>('deleted_reservations.json', []);
+            if (!Array.isArray(deletedList)) deletedList = [];
+          } catch {
+            deletedList = [];
+          }
+          const deletedSet = new Set([
+            ...deletedList.map(id => String(id).trim().toLowerCase()),
+            ...Array.from(DELETED_RESERVATION_IDS)
+          ]);
+
           return list.filter((r: Reservation) => {
             if (!r) return false;
             if (r.status === 'Cancelled' || r.status === 'cancelled') return false;
             const rId = String(r.id || '').trim().toLowerCase();
             const rExtId = String(r.external_id || '').trim().toLowerCase();
-            return !DELETED_RESERVATION_IDS.has(rId) && !DELETED_RESERVATION_IDS.has(rExtId);
+            return !deletedSet.has(rId) && !deletedSet.has(rExtId);
           });
         }
       }
@@ -240,7 +290,7 @@ export async function deleteWebsiteReservationFromGitHub(...ids: (string | undef
   const targetIds = ids.filter(Boolean) as string[];
   if (targetIds.length === 0) return false;
 
-  registerDeletedReservationId(...targetIds);
+  await registerDeletedReservationId(...targetIds);
 
   const websiteRepo = process.env.WEBSITE_GITHUB_REPO || 'krisyiser/Vainilla-y-Descanso';
   const ghToken = process.env.GITHUB_TOKEN;

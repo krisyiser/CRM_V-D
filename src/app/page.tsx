@@ -1,13 +1,14 @@
 "use client";
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BedDouble, CalendarCheck, Users, DollarSign, Loader2, Sparkles, Plus } from 'lucide-react';
+import { BedDouble, CalendarCheck, Users, DollarSign, Loader2, Sparkles, Plus, Ticket } from 'lucide-react';
 import { apiFetch, API } from '@/lib/api';
 import type { Room, Reservation, RoomCharge } from '@/types';
 import RoomDetailPanel from '@/components/dashboard/RoomDetailPanel';
 import GuestRegistrationModal from '@/components/dashboard/GuestRegistrationModal';
 import CheckoutModal from '@/components/dashboard/CheckoutModal';
 import StayReportModal from '@/components/dashboard/StayReportModal';
+import DayPassModal from '@/components/dashboard/DayPassModal';
 import { getTodayDateStr, isReservationActiveOnDate } from '@/lib/dateUtils';
 
 export default function DashboardPage() {
@@ -28,6 +29,7 @@ export default function DashboardPage() {
   // Stay Report Modal state
   const [checkoutChargeRecord, setCheckoutChargeRecord] = useState<RoomCharge | null>(null);
   const [showStayReportModal, setShowStayReportModal] = useState(false);
+  const [showDayPass, setShowDayPass] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -124,6 +126,12 @@ export default function DashboardPage() {
             <Sparkles size={18} className="text-[#A68A64]" />
             <h2 className="text-lg font-semibold text-[#2D2D2D]">Estado de Suites</h2>
           </div>
+          <button
+            onClick={() => setShowDayPass(true)}
+            className="px-4 py-2.5 bg-[#A68A64] hover:bg-[#8F7553] text-white rounded-2xl text-xs font-bold uppercase tracking-widest transition-all shadow-md flex items-center gap-2 active:scale-95"
+          >
+            <Ticket size={14} /> Registrar Day Pass
+          </button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
@@ -236,6 +244,15 @@ export default function DashboardPage() {
         guestName={checkoutChargeRecord ? checkoutChargeRecord.guest_name : ''}
         chargeRecord={checkoutChargeRecord}
       />
+
+      {/* Independent Day Pass Registration Modal */}
+      {showDayPass && (
+        <DayPassModal
+          isOpen={showDayPass}
+          onClose={() => setShowDayPass(false)}
+          onSuccess={fetchData}
+        />
+      )}
     </div>
   );
 }

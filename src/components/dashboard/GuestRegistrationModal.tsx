@@ -31,8 +31,6 @@ export default function GuestRegistrationModal({ isOpen, onClose, room, reservat
     roomId: room?.id || '',
     extraPersons: 0,
     extraCharge: 0,
-    dayPasses: 0,
-    dayPassWithFood: false,
     parking: false,
     paymentMethod: 'Efectivo',
     isHighSeason: false,
@@ -132,10 +130,9 @@ export default function GuestRegistrationModal({ isOpen, onClose, room, reservat
       }
     }
 
-    const dayPassPrice = formData.dayPassWithFood ? 150 : 100;
     const parkingFee = formData.parking ? (nights * 50) : 0;
     const extraChargesSum = extraChargesList.reduce((acc, curr) => acc + curr.amount, 0);
-    const extras = (formData.extraPersons * 250) + extraChargesSum + (formData.dayPasses * dayPassPrice) + parkingFee;
+    const extras = (formData.extraPersons * 250) + extraChargesSum + parkingFee;
     let finalTotal = totalStayPrice + extras;
     
     if (formData.paymentMethod === 'Tarjeta') {
@@ -143,7 +140,7 @@ export default function GuestRegistrationModal({ isOpen, onClose, room, reservat
     }
     
     setFormData(prev => ({ ...prev, basePrice: totalStayPrice, total: finalTotal }));
-  }, [formData.roomId, formData.isHighSeason, formData.checkIn, formData.checkOut, formData.extraPersons, formData.dayPasses, formData.dayPassWithFood, formData.parking, formData.paymentMethod, rooms, extraChargesList]);
+  }, [formData.roomId, formData.isHighSeason, formData.checkIn, formData.checkOut, formData.extraPersons, formData.parking, formData.paymentMethod, rooms, extraChargesList]);
 
   if (!isOpen) return null;
 
@@ -168,8 +165,7 @@ export default function GuestRegistrationModal({ isOpen, onClose, room, reservat
       const nights = formData.checkIn === formData.checkOut ? 1 : Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
       
       const parkingInfo = formData.parking ? ` | Estacionamiento (${nights} día${nights > 1 ? 's' : ''})` : '';
-      const dayPassInfo = formData.dayPasses > 0 ? ` | Day Pass x${formData.dayPasses}${formData.dayPassWithFood ? ' (con comida)' : ''}` : '';
-      const extrasStr = `Extras: ${extraChargesList.map(e => e.concept + '($' + e.amount + ')').join(', ')}${dayPassInfo}${parkingInfo}`;
+      const extrasStr = `Extras: ${extraChargesList.map(e => e.concept + '($' + e.amount + ')').join(', ')}${parkingInfo}`;
 
       await apiFetch(API.reservations, {
         method: 'POST',
