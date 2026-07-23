@@ -2,9 +2,18 @@ import { NextResponse } from 'next/server';
 import { readJson, writeJson } from '@/lib/db';
 import type { PosSale } from '@/types';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const CORS_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0',
+};
+
 export async function GET() {
   const sales = await readJson<PosSale[]>('pos_sales.json', []);
-  return NextResponse.json(sales);
+  return NextResponse.json(sales, { headers: CORS_HEADERS });
 }
 
 export async function POST(request: Request) {

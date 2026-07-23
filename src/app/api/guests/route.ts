@@ -2,10 +2,19 @@ import { NextResponse } from 'next/server';
 import { readJson, writeJson } from '@/lib/db';
 import type { Guest } from '@/types';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const CORS_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0',
+};
+
 export async function GET() {
   const guests = await readJson<Guest[]>('guests.json', []);
   const sorted = [...guests].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-  return NextResponse.json(sorted);
+  return NextResponse.json(sorted, { headers: CORS_HEADERS });
 }
 
 export async function POST(request: Request) {

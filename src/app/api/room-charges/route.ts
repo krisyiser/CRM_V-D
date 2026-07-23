@@ -2,9 +2,18 @@ import { NextResponse } from 'next/server';
 import { readJson, writeJson } from '@/lib/db';
 import type { RoomCharge } from '@/types';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const CORS_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0',
+};
+
 export async function GET() {
   const charges = await readJson<RoomCharge[]>('room_charges.json', []);
-  return NextResponse.json(charges);
+  return NextResponse.json(charges, { headers: CORS_HEADERS });
 }
 
 export async function POST(request: Request) {

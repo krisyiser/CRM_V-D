@@ -36,20 +36,24 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        {/* Service Worker Registration with automatic update on load */}
+        {/* Service Worker Cleanup & Cache Eviction to fix stuck PWA caching */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').then(
-                    function(registration) {
-                      registration.update();
-                    },
-                    function(err) {
-                      console.log('ServiceWorker registration failed: ', err);
-                    }
-                  );
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                  for (let registration of registrations) {
+                    registration.unregister().then(function() {
+                      console.log('ServiceWorker unregistered successfully');
+                    });
+                  }
+                });
+              }
+              if ('caches' in window) {
+                caches.keys().then(function(names) {
+                  for (let name of names) {
+                    caches.delete(name);
+                  }
                 });
               }
             `,
