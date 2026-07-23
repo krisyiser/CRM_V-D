@@ -84,30 +84,6 @@ export async function apiFetch<T>(
   const text = await res.text();
   const data = text ? JSON.parse(text) : (null as any);
 
-  // Filter reservations response against client-side tombstones
-  if ((method === 'GET' || !options?.method) && cleanEndpoint.includes('reservations')) {
-    const tombstones = getCancelledReservationIdsFromStorage();
-    if (tombstones.size > 0) {
-      if (Array.isArray(data)) {
-        return data.filter((r: any) => {
-          if (!r) return false;
-          if (r.status === 'Cancelled' || r.status === 'cancelled') return false;
-          const rId = String(r.id || '').trim().toLowerCase();
-          const rExtId = String(r.external_id || '').trim().toLowerCase();
-          return !tombstones.has(rId) && !tombstones.has(rExtId);
-        }) as any as T;
-      } else if (data && Array.isArray(data.reservations)) {
-        data.reservations = data.reservations.filter((r: any) => {
-          if (!r) return false;
-          if (r.status === 'Cancelled' || r.status === 'cancelled') return false;
-          const rId = String(r.id || '').trim().toLowerCase();
-          const rExtId = String(r.external_id || '').trim().toLowerCase();
-          return !tombstones.has(rId) && !tombstones.has(rExtId);
-        });
-      }
-    }
-  }
-
   return data;
 }
 

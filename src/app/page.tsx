@@ -46,7 +46,11 @@ export default function DashboardPage() {
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 10000); // Sync across reception/admin sessions
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
   const today = getTodayDateStr();
   const todayReservations = reservations.filter(r => isReservationActiveOnDate(r, today));

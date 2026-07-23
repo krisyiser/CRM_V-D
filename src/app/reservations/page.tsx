@@ -28,7 +28,11 @@ export default function ReservationsPage() {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+    const interval = setInterval(fetchData, 10000); // Sync across reception/admin sessions
+    return () => clearInterval(interval);
+  }, []);
 
   const filtered = reservations.filter(res =>
     res &&
