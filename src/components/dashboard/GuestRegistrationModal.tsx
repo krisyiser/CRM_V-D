@@ -44,13 +44,7 @@ export default function GuestRegistrationModal({ isOpen, onClose, room, reservat
   const [newConcept, setNewConcept] = useState('');
   const [newAmount, setNewAmount] = useState('');
 
-  const pricingMatrix: Record<string, any> = {
-    '101': { alta: 2800, baja: 2300, semana: 1900 },
-    '102': { alta: 1950, baja: 1600, semana: 1200 },
-    '105': { alta: 1950, baja: 1600, semana: 1200 },
-    '104': { alta: 1400, baja: 1100, semana: 900 },
-    '103': { alta: 1400, baja: 1100, semana: 900 },
-  };
+
 
   useEffect(() => {
     if (isOpen) {
@@ -98,49 +92,41 @@ export default function GuestRegistrationModal({ isOpen, onClose, room, reservat
     }
   }, [isOpen, room, reservation]);
 
-  const getPriceForDate = (dateStr: string, roomId: string, forceHigh: boolean) => {
-    if (!dateStr) return 0;
-    if (forceHigh) return pricingMatrix[roomId]?.alta || 0;
+  // Prefill default base price when dates or room changes
+  useEffect(() => {
+    if (!formData.checkIn || !formData.checkOut || !formData.roomId || rooms.length === 0) return;
+    const selectedRoomObj = rooms.find(r => r.id === formData.roomId);
+    if (selectedRoomObj) {
+      const start = new Date(formData.checkIn + 'T12:00:00');
+      const end = new Date(formData.checkOut + 'T12:00:00');
+      const nights = formData.checkIn === formData.checkOut ? 1 : Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
+      const defaultPrice = (selectedRoomObj.price || 1200) * nights;
+      setFormData(prev => ({ ...prev, basePrice: defaultPrice }));
+    }
+  }, [formData.roomId, formData.checkIn, formData.checkOut, rooms]);
 
-    const date = new Date(dateStr + 'T12:00:00');
-    const day = date.getDay();
-    let type = 'semana';
-    if (day === 6) type = 'alta';
-    if (day === 0 || day === 4 || day === 5) type = 'baja';
-
-    return pricingMatrix[roomId]?.[type] || 0;
-  };
-
+  // Calculate final total based on manual basePrice and extras
   useEffect(() => {
     if (!formData.checkIn || !formData.checkOut || !formData.roomId) return;
 
     const start = new Date(formData.checkIn + 'T12:00:00');
     const end = new Date(formData.checkOut + 'T12:00:00');
-    let totalStayPrice = 0;
-    let nights = 0;
-
-    if (formData.checkIn === formData.checkOut) {
-      totalStayPrice = getPriceForDate(formData.checkIn, formData.roomId, formData.isHighSeason);
-      nights = 1;
-    } else {
-      for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
-        const currentStr = d.toISOString().split('T')[0];
-        totalStayPrice += getPriceForDate(currentStr, formData.roomId, formData.isHighSeason);
-        nights++;
-      }
-    }
+    const nights = formData.checkIn === formData.checkOut ? 1 : Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000));
 
     const parkingFee = formData.parking ? (nights * 50) : 0;
     const extraChargesSum = extraChargesList.reduce((acc, curr) => acc + curr.amount, 0);
     const extras = (formData.extraPersons * 250) + extraChargesSum + parkingFee;
-    let finalTotal = totalStayPrice + extras;
+    let finalTotal = formData.basePrice + extras;
     
     if (formData.paymentMethod === 'Tarjeta') {
       finalTotal = finalTotal * 1.05;
     }
     
-    setFormData(prev => ({ ...prev, basePrice: totalStayPrice, total: finalTotal }));
-  }, [formData.roomId, formData.isHighSeason, formData.checkIn, formData.checkOut, formData.extraPersons, formData.parking, formData.paymentMethod, rooms, extraChargesList]);
+    setFormData(prev => {
+      if (prev.total === finalTotal) return prev;
+      return { ...prev, total: finalTotal };
+    });
+  }, [formData.roomId, formData.checkIn, formData.checkOut, formData.extraPersons, formData.parking, formData.paymentMethod, formData.basePrice, extraChargesList]);
 
   if (!isOpen) return null;
 

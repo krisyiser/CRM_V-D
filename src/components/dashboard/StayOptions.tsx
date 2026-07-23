@@ -120,16 +120,20 @@ export default function StayOptions({
           </div>
           <div className="mt-2 flex justify-between items-center px-1">
             <div className="flex flex-col">
-              <span className="text-[9px] text-[#8C8C8C] uppercase font-bold">Tarifa Dinámica Aplicada</span>
+              <span className="text-[9px] text-[#8C8C8C] uppercase font-bold">Tarifa Aplicada</span>
               <span className="text-[10px] font-bold text-[#A68A64]">
-                {formData.isHighSeason ? '✓ Todo incluido con Desayuno' : 'Varios precios por noche'}
+                {formData.isHighSeason ? '✓ Todo incluido con Desayuno' : 'Tarifa base editable'}
               </span>
             </div>
-            <div className="text-right">
-              <span className="text-[9px] text-[#8C8C8C] uppercase font-bold">Subtotal Hospedaje</span>
-              <div className="text-sm font-bold text-[#2D2D2D]">
-                ${formData.basePrice.toLocaleString()}
-              </div>
+            <div className="text-right flex flex-col items-end">
+              <label className="text-[9px] text-[#8C8C8C] uppercase font-bold mb-1">Precio Hospedaje ($)</label>
+              <input
+                type="number"
+                min="0"
+                value={formData.basePrice || ''}
+                onChange={(e) => setFormData((prev: any) => ({ ...prev, basePrice: parseFloat(e.target.value) || 0 }))}
+                className="w-28 text-right bg-[#F9F7F2] border border-[#E8E4D9] rounded-xl py-1.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#A68A64]/20 text-[#2D2D2D] font-bold"
+              />
             </div>
           </div>
         </div>
