@@ -161,6 +161,23 @@ export async function POST(request: Request) {
       []
     );
 
+    // Also update the room's status to 'occupied' if this is a check-in
+    const roomId = String(body.room_id || body.roomId || '');
+    if (roomId) {
+      try {
+        await updateJsonTransactional<any[]>(
+          'rooms.json',
+          (roomsList) => {
+            const list = Array.isArray(roomsList) ? roomsList : [];
+            return list.map(r => String(r.id) === roomId ? { ...r, status: 'occupied' } : r);
+          },
+          []
+        );
+      } catch (roomErr) {
+        console.error('[POST /api/reservations] Could not update room status to occupied:', roomErr);
+      }
+    }
+
     return NextResponse.json(newReservation, { status: 200, headers: CORS_HEADERS });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500, headers: CORS_HEADERS });

@@ -61,7 +61,7 @@ export async function readJson<T>(filename: string, fallback: T): Promise<T> {
   // 1. Primary Read: GitHub API if configured (to avoid stale serverless disk cache)
   if (ghToken) {
     try {
-      const res = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}`, {
+      const res = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}?t=${Date.now()}`, {
         headers: {
           'Authorization': `Bearer ${ghToken}`,
           'Accept': 'application/vnd.github.v3.raw',
@@ -170,7 +170,7 @@ export async function writeJson<T>(filename: string, data: T): Promise<void> {
 
   if (ghToken) {
     try {
-      const metaRes = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}`, {
+      const metaRes = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}?t=${Date.now()}`, {
         headers: {
           'Authorization': `Bearer ${ghToken}`,
           'User-Agent': 'Vainilla-CRM'
@@ -212,8 +212,8 @@ export async function fetchWebsiteReservationsFromGitHub(): Promise<Reservation[
   const ghToken = process.env.GITHUB_TOKEN;
 
   const pathsToTry = [
-    `https://raw.githubusercontent.com/${websiteRepo}/main/data/db.json`,
-    `https://api.github.com/repos/${websiteRepo}/contents/data/db.json`
+    `https://raw.githubusercontent.com/${websiteRepo}/main/data/db.json?t=${Date.now()}`,
+    `https://api.github.com/repos/${websiteRepo}/contents/data/db.json?t=${Date.now()}`
   ];
 
   for (const targetUrl of pathsToTry) {
@@ -302,7 +302,7 @@ export async function deleteWebsiteReservationFromGitHub(...ids: (string | undef
   while (attempt < maxRetries) {
     attempt++;
     try {
-      const contentsUrl = `https://api.github.com/repos/${websiteRepo}/contents/data/db.json`;
+      const contentsUrl = `https://api.github.com/repos/${websiteRepo}/contents/data/db.json?t=${Date.now()}`;
       const res = await fetch(contentsUrl, {
         headers: {
           'Authorization': `Bearer ${ghToken}`,
@@ -388,7 +388,7 @@ export async function updateJsonTransactional<T>(
     // 1. Fetch current data and SHA directly from GitHub if configured
     if (ghToken) {
       try {
-        const res = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}`, {
+        const res = await fetch(`https://api.github.com/repos/${ghRepo}/contents/data/${safeName}?t=${Date.now()}`, {
           headers: {
             'Authorization': `Bearer ${ghToken}`,
             'User-Agent': 'Vainilla-CRM'

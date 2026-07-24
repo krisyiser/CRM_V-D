@@ -108,6 +108,7 @@ export async function apiFetch<T>(
           status: parsedBody.status || 'Confirmed',
           external_id: parsedBody.external_id || parsedBody.reservation_id || parsedBody.id || null,
           created_at: parsedBody.created_at || new Date().toISOString(),
+          _localOnly: true
         };
         const current = getLocalItem<any[]>('vd_local_reservations', []);
         const idx = current.findIndex(r => r && (r.id === localRes.id || (localRes.external_id && r.external_id === localRes.external_id)));
@@ -130,8 +131,8 @@ export async function apiFetch<T>(
       if (method === 'PATCH' && parsedBody?.id && parsedBody?.status) {
         const roomId = String(parsedBody.id).trim();
         const status = parsedBody.status;
-        const localStatuses = getLocalItem<Record<string, string>>('vd_local_room_statuses', {});
-        localStatuses[roomId] = status;
+        const localStatuses = getLocalItem<Record<string, { status: string; _localOnly?: boolean }>>('vd_local_room_statuses', {});
+        localStatuses[roomId] = { status, _localOnly: true };
         setLocalItem('vd_local_room_statuses', localStatuses);
 
         // Update local rooms array
@@ -173,6 +174,7 @@ export async function apiFetch<T>(
           id_number: parsedBody.id_number || null,
           origin: parsedBody.origin || null,
           created_at: parsedBody.created_at || new Date().toISOString(),
+          _localOnly: true
         };
         const current = getLocalItem<any[]>('vd_local_guests', []);
         const idx = current.findIndex(g => g && g.name.toLowerCase() === localGuest.name.toLowerCase());
@@ -188,18 +190,18 @@ export async function apiFetch<T>(
       }
     } else if (cleanEndpoint.includes('settings')) {
       if (method === 'POST' && parsedBody?.key && parsedBody?.value) {
-        const current = getLocalItem<Record<string, string>>('vd_local_settings', {});
-        current[parsedBody.key] = parsedBody.value;
+        const current = getLocalItem<Record<string, { value: string; _localOnly?: boolean }>>('vd_local_settings', {});
+        current[parsedBody.key] = { value: parsedBody.value, _localOnly: true };
         setLocalItem('vd_local_settings', current);
       }
     } else if (cleanEndpoint.includes('notifications')) {
       if (method === 'PATCH') {
         const current = getLocalItem<any[]>('vd_local_notifications', []);
         if (parsedBody?.action === 'mark_all_read') {
-          const updated = current.map(n => n ? { ...n, read: true } : n);
+          const updated = current.map(n => n ? { ...n, read: true, _localOnly: true } : n);
           setLocalItem('vd_local_notifications', updated);
         } else if (parsedBody?.id) {
-          const updated = current.map(n => n && n.id === parsedBody.id ? { ...n, read: true } : n);
+          const updated = current.map(n => n && n.id === parsedBody.id ? { ...n, read: true, _localOnly: true } : n);
           setLocalItem('vd_local_notifications', updated);
         }
       }
@@ -213,6 +215,7 @@ export async function apiFetch<T>(
           stock: parsedBody.stock || null,
           image: parsedBody.image || null,
           created_at: parsedBody.created_at || new Date().toISOString(),
+          _localOnly: true
         };
         const current = getLocalItem<any[]>('vd_local_products', []);
         const idx = current.findIndex(p => p && p.id === localProduct.id);
@@ -235,6 +238,7 @@ export async function apiFetch<T>(
           payment_method: parsedBody.payment_method || 'Efectivo',
           notes: parsedBody.notes || null,
           created_at: parsedBody.created_at || new Date().toISOString(),
+          _localOnly: true
         };
         const current = getLocalItem<any[]>('vd_local_pos_sales', []);
         current.unshift(localSale);
@@ -252,6 +256,7 @@ export async function apiFetch<T>(
           items_json: parsedBody.items_json || parsedBody.items || [],
           total: Number(parsedBody.total) || 0,
           created_at: parsedBody.created_at || new Date().toISOString(),
+          _localOnly: true
         };
         const current = getLocalItem<any[]>('vd_local_room_charges', []);
         current.unshift(localCharge);
@@ -268,6 +273,7 @@ export async function apiFetch<T>(
           rating: Number(parsedBody.rating) || 5,
           comment: parsedBody.comment || '',
           created_at: parsedBody.created_at || new Date().toISOString(),
+          _localOnly: true
         };
         const current = getLocalItem<any[]>('vd_local_feedback', []);
         current.unshift(localFeedback);
@@ -275,7 +281,7 @@ export async function apiFetch<T>(
       }
     } else if (cleanEndpoint.includes('open-tables')) {
       if (method === 'POST') {
-        setLocalItem('vd_local_open_tables', parsedBody);
+        setLocalItem('vd_local_open_tables', { ...parsedBody, _localOnly: true });
       }
     }
   }
@@ -319,17 +325,18 @@ export async function apiFetch<T>(
       if (cleanEndpoint.includes('reservations')) {
         const serverList = Array.isArray(serverData) ? serverData : [];
         const localList = getLocalItem<any[]>('vd_local_reservations', []);
-        const map = new Map<string, any>();
         
-        for (const r of serverList) {
-          if (r && r.id) map.set(String(r.id).trim().toLowerCase(), r);
-        }
+        const merged = [...serverList];
         for (const r of localList) {
-          if (r && r.id) map.set(String(r.id).trim().toLowerCase(), r);
+          if (r && r._localOnly) {
+            if (!merged.some(sr => String(sr.id) === String(r.id) || (r.external_id && String(sr.external_id) === String(r.external_id)))) {
+              merged.push(r);
+            }
+          }
         }
 
         const cancelled = getCancelledReservationIdsFromStorage();
-        const merged = Array.from(map.values()).filter((r: any) => {
+        const finalFiltered = merged.filter((r: any) => {
           if (!r) return false;
           const rId = String(r.id || '').trim().toLowerCase();
           const rExtId = String(r.external_id || '').trim().toLowerCase();
@@ -341,31 +348,28 @@ export async function apiFetch<T>(
           return true;
         });
 
-        setLocalItem('vd_local_reservations', merged);
-        return merged as any;
+        setLocalItem('vd_local_reservations', finalFiltered);
+        return finalFiltered as any;
       }
 
       if (cleanEndpoint.includes('rooms')) {
         const serverList = Array.isArray(serverData) ? serverData : [];
-        const localList = getLocalItem<any[]>('vd_local_rooms', []);
-        const localStatuses = getLocalItem<Record<string, string>>('vd_local_room_statuses', {});
+        const localStatuses = getLocalItem<Record<string, { status: string; _localOnly?: boolean }>>('vd_local_room_statuses', {});
         
-        const map = new Map<string, any>();
-        for (const r of serverList) {
-          if (r && r.id) map.set(String(r.id), r);
-        }
-        for (const r of localList) {
-          if (r && r.id) map.set(String(r.id), r);
-        }
-
-        const merged = Array.from(map.values()).map((r: any) => {
+        const merged = serverList.map((r: any) => {
           const rId = String(r.id);
-          if (localStatuses[rId]) {
-            return { ...r, status: localStatuses[rId] };
+          const override = localStatuses[rId];
+          if (override) {
+            if (r.status === override.status) {
+              delete localStatuses[rId];
+            } else if (override._localOnly) {
+              return { ...r, status: override.status };
+            }
           }
           return r;
         });
 
+        setLocalItem('vd_local_room_statuses', localStatuses);
         setLocalItem('vd_local_rooms', merged);
         return merged as any;
       }
@@ -373,52 +377,68 @@ export async function apiFetch<T>(
       if (cleanEndpoint.includes('guests')) {
         const serverList = Array.isArray(serverData) ? serverData : [];
         const localList = getLocalItem<any[]>('vd_local_guests', []);
-        const map = new Map<string, any>();
-        for (const g of serverList) {
-          if (g && g.id) map.set(String(g.id).trim().toLowerCase(), g);
-        }
+        
+        const merged = [...serverList];
         for (const g of localList) {
-          if (g && g.id) map.set(String(g.id).trim().toLowerCase(), g);
+          if (g && g._localOnly) {
+            if (!merged.some(sg => String(sg.id) === String(g.id) || String(sg.name).toLowerCase() === String(g.name).toLowerCase())) {
+              merged.push(g);
+            }
+          }
         }
-        const merged = Array.from(map.values());
         setLocalItem('vd_local_guests', merged);
         return merged as any;
       }
 
       if (cleanEndpoint.includes('settings')) {
         const serverDict = serverData && typeof serverData === 'object' ? serverData : {};
-        const localDict = getLocalItem<Record<string, string>>('vd_local_settings', {});
-        const merged = { ...serverDict, ...localDict };
-        setLocalItem('vd_local_settings', merged);
+        const localDict = getLocalItem<Record<string, { value: string; _localOnly?: boolean }>>('vd_local_settings', {});
+        
+        const merged: Record<string, string> = {};
+        for (const k of Object.keys(serverDict)) {
+          merged[k] = serverDict[k];
+          if (localDict[k] && localDict[k].value === serverDict[k]) {
+            delete localDict[k];
+          }
+        }
+        for (const k of Object.keys(localDict)) {
+          if (localDict[k] && localDict[k]._localOnly) {
+            merged[k] = localDict[k].value;
+          }
+        }
+        setLocalItem('vd_local_settings', localDict);
         return merged as any;
       }
 
       if (cleanEndpoint.includes('notifications')) {
         const serverList = Array.isArray(serverData) ? serverData : [];
         const localList = getLocalItem<any[]>('vd_local_notifications', []);
-        const map = new Map<string, any>();
-        for (const n of serverList) {
-          if (n && n.id) map.set(String(n.id), n);
-        }
+        
+        const merged = [...serverList];
         for (const n of localList) {
-          if (n && n.id) map.set(String(n.id), n);
+          if (n && n._localOnly) {
+            if (!merged.some(sn => String(sn.id) === String(n.id))) {
+              merged.push(n);
+            }
+          }
         }
-        const merged = Array.from(map.values()).sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
-        setLocalItem('vd_local_notifications', merged);
-        return merged as any;
+        const sorted = merged.sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime());
+        setLocalItem('vd_local_notifications', sorted);
+        return sorted as any;
       }
 
       if (cleanEndpoint.includes('products')) {
         const serverList = Array.isArray(serverData) ? serverData : [];
         const localList = getLocalItem<any[]>('vd_local_products', []);
-        const map = new Map<string, any>();
-        for (const p of serverList) {
-          if (p && p.id) map.set(String(p.id).trim().toLowerCase(), p);
-        }
+        
+        const merged = [...serverList];
         for (const p of localList) {
-          if (p && p.id) map.set(String(p.id).trim().toLowerCase(), p);
+          if (p && p._localOnly) {
+            if (!merged.some(sp => String(sp.id) === String(p.id))) {
+              merged.push(p);
+            }
+          }
         }
-        const merged = Array.from(map.values());
         setLocalItem('vd_local_products', merged);
         return merged as any;
       }
@@ -426,46 +446,52 @@ export async function apiFetch<T>(
       if (cleanEndpoint.includes('pos-sales')) {
         const serverList = Array.isArray(serverData) ? serverData : [];
         const localList = getLocalItem<any[]>('vd_local_pos_sales', []);
-        const map = new Map<string, any>();
-        for (const s of serverList) {
-          if (s && s.id) map.set(String(s.id).trim().toLowerCase(), s);
-        }
+        
+        const merged = [...serverList];
         for (const s of localList) {
-          if (s && s.id) map.set(String(s.id).trim().toLowerCase(), s);
+          if (s && s._localOnly) {
+            if (!merged.some(ss => String(ss.id) === String(s.id))) {
+              merged.push(s);
+            }
+          }
         }
-        const merged = Array.from(map.values()).sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-        setLocalItem('vd_local_pos_sales', merged);
-        return merged as any;
+        const sorted = merged.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+        setLocalItem('vd_local_pos_sales', sorted);
+        return sorted as any;
       }
 
       if (cleanEndpoint.includes('room-charges')) {
         const serverList = Array.isArray(serverData) ? serverData : [];
         const localList = getLocalItem<any[]>('vd_local_room_charges', []);
-        const map = new Map<string, any>();
-        for (const c of serverList) {
-          if (c && c.id) map.set(String(c.id).trim().toLowerCase(), c);
-        }
+        
+        const merged = [...serverList];
         for (const c of localList) {
-          if (c && c.id) map.set(String(c.id).trim().toLowerCase(), c);
+          if (c && c._localOnly) {
+            if (!merged.some(sc => String(sc.id) === String(c.id))) {
+              merged.push(c);
+            }
+          }
         }
-        const merged = Array.from(map.values()).sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-        setLocalItem('vd_local_room_charges', merged);
-        return merged as any;
+        const sorted = merged.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+        setLocalItem('vd_local_room_charges', sorted);
+        return sorted as any;
       }
 
       if (cleanEndpoint.includes('feedback')) {
         const serverList = Array.isArray(serverData) ? serverData : [];
         const localList = getLocalItem<any[]>('vd_local_feedback', []);
-        const map = new Map<string, any>();
-        for (const f of serverList) {
-          if (f && f.id) map.set(String(f.id).trim().toLowerCase(), f);
-        }
+        
+        const merged = [...serverList];
         for (const f of localList) {
-          if (f && f.id) map.set(String(f.id).trim().toLowerCase(), f);
+          if (f && f._localOnly) {
+            if (!merged.some(sf => String(sf.id) === String(f.id))) {
+              merged.push(f);
+            }
+          }
         }
-        const merged = Array.from(map.values()).sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-        setLocalItem('vd_local_feedback', merged);
-        return merged as any;
+        const sorted = merged.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+        setLocalItem('vd_local_feedback', sorted);
+        return sorted as any;
       }
 
       if (cleanEndpoint.includes('open-tables')) {
@@ -484,10 +510,11 @@ export async function apiFetch<T>(
         if (method === 'POST') {
           const current = getLocalItem<any[]>('vd_local_reservations', []);
           const idx = current.findIndex(r => r && (r.id === serverData.id || (serverData.external_id && r.external_id === serverData.external_id)));
+          const cleaned = { ...serverData, _localOnly: false };
           if (idx >= 0) {
-            current[idx] = serverData;
+            current[idx] = cleaned;
           } else {
-            current.push(serverData);
+            current.push(cleaned);
           }
           setLocalItem('vd_local_reservations', current);
         }
@@ -495,17 +522,18 @@ export async function apiFetch<T>(
         if (method === 'POST') {
           const current = getLocalItem<any[]>('vd_local_guests', []);
           const idx = current.findIndex(g => g && g.name.toLowerCase() === serverData.name.toLowerCase());
+          const cleaned = { ...serverData, _localOnly: false };
           if (idx >= 0) {
-            current[idx] = serverData;
+            current[idx] = cleaned;
           } else {
-            current.unshift(serverData);
+            current.unshift(cleaned);
           }
           setLocalItem('vd_local_guests', current);
         }
       } else if (cleanEndpoint.includes('rooms')) {
         if (method === 'PATCH' && serverData.room) {
-          const localStatuses = getLocalItem<Record<string, string>>('vd_local_room_statuses', {});
-          localStatuses[String(serverData.room.id)] = serverData.room.status;
+          const localStatuses = getLocalItem<Record<string, { status: string; _localOnly?: boolean }>>('vd_local_room_statuses', {});
+          delete localStatuses[String(serverData.room.id)]; // clear override as it is synced
           setLocalItem('vd_local_room_statuses', localStatuses);
         }
       }
